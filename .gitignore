@@ -1,0 +1,13 @@
+node_modules
+.env
+history.json
+bun.lockb
+dist
+.plebbit
+yarn.lock
+deploy.sh
+package-lock.json
+yarn.lock
+redis
+data.sqlite
+migration
