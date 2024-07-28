@@ -11,7 +11,7 @@ import { inspect } from "util";
 import Jimp from "jimp";
 import { MessageService } from "../services/message.service.js";
 import { Comment } from "@plebbit/plebbit-js/dist/node/publications/comment/comment.js";
-import { fetchSubs } from "../plebbitfeed/plebbit-feed-bot.js";
+import { fetchSubs } from "../plebbitfeed-chat/plebbitfeed-chat-bot.js";
 
 const userService = new UserService();
 const messageService = new MessageService();
@@ -108,7 +108,7 @@ const onComment = async (ctx: any) => {
             ].url
         )!;
     } else {
-        // look in the reply thread if the original message is a post in plebgram
+        // look in the reply thread if the original message is a post in plebbitfeed
         let repliedPost = await messageService.getMessage(
             `${ctx.message.reply_to_message.message_id}`
         );
@@ -223,7 +223,7 @@ const onVote = async (ctx: any, vote: 1 | -1) => {
         ctx.update.callback_query.message.reply_markup.inline_keyboard[0][1].url
     )!;
     if (!signer) {
-        ctx.answerCbQuery("⚠️⚠️⚠️ start @plebgrambot ⚠️⚠️⚠️");
+        ctx.answerCbQuery("⚠️⚠️⚠️ start @plebbitfeedbot ⚠️⚠️⚠️");
         return;
     }
     plebbitFeedTgBot.telegram.sendMessage(ctx.from.id!, "Creating request...");
@@ -426,7 +426,7 @@ export async function isUserRegistered(
     return false;
 }
 
-export async function startPlebgramBot(bot: Telegraf<Scenes.WizardContext>) {
+export async function startplebbitfeedBot(bot: Telegraf<Scenes.WizardContext>) {
     const subsFetched = await fetchSubs();
     monospaceSubList = subsFetched
         .map((sub: string) => `<code>${sub}</code>`)
@@ -435,12 +435,12 @@ export async function startPlebgramBot(bot: Telegraf<Scenes.WizardContext>) {
     //        log.info(ctx.message.from.username + " started the bot");
     //        if (!(await isUserRegistered(`${ctx.from!.id}`))) {
     //            await ctx.reply(
-    //                `Welcome to Plebgram. Please register first.
+    //                `Welcome to plebbitfeed. Please register first.
     //Use /register to create a new user or /login to use an existing user.
     //This process cannot be undone for now.`
     //            );
     //        } else {
-    //            await ctx.reply("Welcome to Plebgram. You are already logged in");
+    //            await ctx.reply("Welcome to plebbitfeed. You are already logged in");
     //        }
     //    });
 
@@ -480,8 +480,8 @@ export async function startPlebgramBot(bot: Telegraf<Scenes.WizardContext>) {
             try {
                 await ctx.answerCbQuery(
                     user
-                        ? "Sending vote, please check @plebgrambot"
-                        : `⚠️⚠️⚠️ start @plebgrambot ⚠️⚠️⚠️`
+                        ? "Sending vote, please check @plebbitfeedbot"
+                        : `⚠️⚠️⚠️ start @plebbitfeedbot ⚠️⚠️⚠️`
                 );
                 if (user) {
                     await onVote(ctx, vote);

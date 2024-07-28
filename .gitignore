@@ -11,3 +11,4 @@ yarn.lock
 redis
 data.sqlite
 migration
+.DS_Store
