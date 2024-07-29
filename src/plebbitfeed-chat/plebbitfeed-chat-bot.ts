@@ -75,6 +75,7 @@ async function scrollPosts(
                             )
                             .then(() => {
                                 processedCids.Cids.push(currentPostCid);
+                                savePosts(); // Save after processing each post
                             })
                             .catch((error: any) => {
                                 log.error(error);
@@ -89,6 +90,7 @@ async function scrollPosts(
                                     )
                                     .then(() => {
                                         processedCids.Cids.push(currentPostCid);
+                                        savePosts(); // Save after processing each post
                                     });
                             });
 
@@ -108,6 +110,7 @@ async function scrollPosts(
                             )
                             .then(() => {
                                 processedCids.Cids.push(currentPostCid);
+                                savePosts(); // Save after processing each post
                             });
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
@@ -117,7 +120,7 @@ async function scrollPosts(
                 log.info("New post: ", postData);
                 currentPostCid = newPost.previousCid;
             } else {
-                //log.info("Already processsed: ", currentPostCid);
+                log.info("Already processed: ", currentPostCid);
                 const post = await plebbit.getComment(currentPostCid);
                 currentPostCid = post.previousCid;
             }
@@ -132,11 +135,15 @@ function loadOldPosts() {
     try {
         const data = fs.readFileSync(historyCidsFile, "utf8");
         processedCids = JSON.parse(data);
+        if (!processedCids.Cids) {
+            processedCids.Cids = [];
+        }
     } catch (error) {
         log.error(error);
-        throw new Error();
+        processedCids = { Cids: [] };
     }
 }
+
 function savePosts() {
     try {
         fs.writeFileSync(
@@ -157,8 +164,8 @@ export async function startPlebbitFeedBot(
     if (!process.env.FEED_BOT_CHAT || !process.env.FEED_BOT_CHAT) {
         throw new Error("FEED_BOT_CHAT or BOT_TOKEN not set");
     }
+    loadOldPosts(); // Load once at the beginning
     while (true) {
-        loadOldPosts();
         console.log("Length of loaded posts: ", processedCids.Cids.length);
         const subs = await fetchSubs();
         await Promise.all(
@@ -213,9 +220,10 @@ export async function startPlebbitFeedBot(
             })
         );
         log.info("saving new posts");
-        savePosts();
+        savePosts(); // Save after each cycle
     }
 }
+
 
 export async function fetchSubs() {
     let subs = [];
