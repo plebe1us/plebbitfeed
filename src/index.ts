@@ -12,6 +12,7 @@ dotenv.config();
 if (!process.env.BOT_TOKEN) {
     throw new Error("BOT_TOKEN is not set");
 }
+
 export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
     process.env.BOT_TOKEN!,
     {
@@ -21,10 +22,15 @@ export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
     }
 );
 
+plebbitFeedTgBot.on('message', (ctx) => {
+    console.log('Chat ID:', ctx.message.chat.id);
+});
+
 export const plebbit = await Plebbit({
     ipfsGatewayUrls: ["https://rannithepleb.com/api/v0"],
-    ipfsHttpClientsOptions: [`http://127.0.0.1:5001/api/v0`],
+    ipfsHttpClientsOptions: [`http://localhost:5001/api/v0`],
 });
+
 plebbit.on("error", (error) => {
     log.error(error.details);
 });
