@@ -23,7 +23,7 @@ export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
 
 export const plebbit = await Plebbit({
     ipfsGatewayUrls: ["https://rannithepleb.com/api/v0"],
-    ipfsHttpClientsOptions: [`http://${process.env.IPFS_NODE}:5001/api/v0`],
+    ipfsHttpClientsOptions: [`http://127.0.0.1:5001/api/v0`],
 });
 plebbit.on("error", (error) => {
     log.error(error.details);
