@@ -21,9 +21,14 @@ async function scrollPosts(
         log.info("Sub loaded");
         let currentPostCid = subInstance.lastPostCid;
         let counter = 0;
+        
         while (currentPostCid && counter < 20) {
             counter += 1;
-            if (currentPostCid && !processedCids.has(currentPostCid)) {
+            log.info(`Processing CID: ${currentPostCid}`);
+            
+            if (!processedCids.has(currentPostCid)) {
+                log.info(`New CID found: ${currentPostCid}`);
+                
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
@@ -76,10 +81,8 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                if (currentPostCid) {
-                                    processedCids.add(currentPostCid);
-                                    savePosts(); // Save after processing each post
-                                }
+                                processedCids.add(currentPostCid);
+                                savePosts(); // Save after processing each post
                             })
                             .catch((error: any) => {
                                 log.error(error);
@@ -93,10 +96,8 @@ async function scrollPosts(
                                         }
                                     )
                                     .then(() => {
-                                        if (currentPostCid) {
-                                            processedCids.add(currentPostCid);
-                                            savePosts(); // Save after processing each post
-                                        }
+                                        processedCids.add(currentPostCid);
+                                        savePosts(); // Save after processing each post
                                     });
                             });
                 
@@ -115,10 +116,8 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                if (currentPostCid) {
-                                    processedCids.add(currentPostCid);
-                                    savePosts(); // Save after processing each post
-                                }
+                                processedCids.add(currentPostCid);
+                                savePosts(); // Save after processing each post
                             });
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
@@ -127,10 +126,12 @@ async function scrollPosts(
                 }
                 log.info("New post: ", postData);
                 currentPostCid = newPost.previousCid;
+                log.info(`Updated currentPostCid to: ${currentPostCid}`);
             } else {
                 log.info("Already processed: ", currentPostCid);
                 const post = await plebbit.getComment(currentPostCid);
                 currentPostCid = post.previousCid;
+                log.info(`Skipped to previous CID: ${currentPostCid}`);
             }
         }
         
@@ -139,6 +140,7 @@ async function scrollPosts(
     }
     log.info("Finished on ", address);
 }
+
 
 function loadOldPosts() {
     try {
