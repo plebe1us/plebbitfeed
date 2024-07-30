@@ -21,6 +21,7 @@ async function scrollPosts(
         log.info("Sub loaded");
         let currentPostCid: string | undefined = subInstance.lastPostCid;
         let counter = 0;
+        const oneHourInMillis = 60 * 60 * 1000;
 
         while (currentPostCid && counter < 20) {
             counter += 1;
@@ -29,6 +30,14 @@ async function scrollPosts(
             if (currentPostCid && !processedCids.has(currentPostCid)) {
                 log.info(`New CID found: ${currentPostCid}`);
                 const newPost = await plebbit.getComment(currentPostCid);
+
+                // Check if the post is less than 1 hour old
+                const currentTime = Date.now();
+                if ((currentTime - newPost.timestamp * 1000) > oneHourInMillis) {
+                    log.info(`Post ${currentPostCid} is older than 1 hour, skipping.`);
+                    currentPostCid = newPost.previousCid as string;
+                    continue;
+                }
 
                 const postData = {
                     title: newPost.title ? newPost.title : "",
@@ -46,7 +55,7 @@ async function scrollPosts(
 
                 postData.content = postData.content
                     .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
+                    .replace(/<//g, "&lt;")
                     .replace(/>/g, "&gt;");
 
                 if (postData.title.length + postData.content.length > 900) {
