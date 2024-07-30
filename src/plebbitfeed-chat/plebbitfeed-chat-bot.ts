@@ -16,10 +16,10 @@ async function scrollPosts(
     plebbit: PlebbitType,
     subInstance: RemoteSubplebbit
 ) {
-    log.info("Checking sub: ", address);
+    log.info(`Checking sub: ${address}`);
     try {
         log.info("Sub loaded");
-        let currentPostCid = subInstance.lastPostCid;
+        let currentPostCid: string | undefined = subInstance.lastPostCid;
         let counter = 0;
 
         while (currentPostCid && counter < 20) {
@@ -28,8 +28,8 @@ async function scrollPosts(
 
             if (currentPostCid && !processedCids.has(currentPostCid)) {
                 log.info(`New CID found: ${currentPostCid}`);
-
                 const newPost = await plebbit.getComment(currentPostCid);
+
                 const postData = {
                     title: newPost.title ? newPost.title : "",
                     content: newPost.content ? newPost.content : "",
@@ -38,6 +38,7 @@ async function scrollPosts(
                     cid: newPost.cid,
                     subplebbitAddress: newPost.subplebbitAddress,
                 };
+
                 postData.title = postData.title
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
@@ -51,102 +52,70 @@ async function scrollPosts(
                 if (postData.title.length + postData.content.length > 900) {
                     if (postData.title.length > 900) {
                         const truncated = postData.title.substring(0, 900);
-                        postData.title =
-                            truncated.substring(0, truncated.length - 3) +
-                            "...";
-                        postData.content =
-                            postData.content.substring(0, 900) + "...";
+                        postData.title = truncated.substring(0, truncated.length - 3) + "...";
+                        postData.content = postData.content.substring(0, 900) + "...";
                     } else {
-                        const truncated = postData.content.substring(
-                            0,
-                            900 - postData.title.length
-                        );
-                        postData.content =
-                            truncated.substring(0, truncated.length - 3) +
-                            "...";
+                        const truncated = postData.content.substring(0, 900 - postData.title.length);
+                        postData.content = truncated.substring(0, truncated.length - 3) + "...";
                     }
                 }
 
                 const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
 
-                if (postData.link) {
-                    await queue.add(async () => {
-                        tgBotInstance.telegram
-                            .sendPhoto(
+                await queue.add(async () => {
+                    try {
+                        if (postData.link) {
+                            await tgBotInstance.telegram.sendPhoto(
                                 process.env.FEED_BOT_CHAT!,
                                 postData.link!,
                                 {
                                     parse_mode: "HTML",
                                     caption: captionMessage,
                                 }
-                            )
-                            .then(() => {
-                                if (currentPostCid) {
-                                    processedCids.add(currentPostCid);
-                                    savePosts(); // Save after processing each post
-                                }
-                            })
-                            .catch((error: any) => {
-                                log.error(error);
-                                // if the link is not a valid image, send the caption
-                                tgBotInstance.telegram
-                                    .sendMessage(
-                                        process.env.FEED_BOT_CHAT!,
-                                        captionMessage,
-                                        {
-                                            parse_mode: "HTML",
-                                        }
-                                    )
-                                    .then(() => {
-                                        if (currentPostCid) {
-                                            processedCids.add(currentPostCid);
-                                            savePosts(); // Save after processing each post
-                                        }
-                                    });
-                            });
-
-                        await new Promise((resolve) =>
-                            setTimeout(resolve, 10 * 1000)
-                        );
-                    });
-                } else {
-                    await queue.add(async () => {
-                        tgBotInstance.telegram
-                            .sendMessage(
+                            );
+                        } else {
+                            await tgBotInstance.telegram.sendMessage(
                                 process.env.FEED_BOT_CHAT!,
                                 captionMessage,
                                 {
                                     parse_mode: "HTML",
                                 }
-                            )
-                            .then(() => {
-                                if (currentPostCid) {
-                                    processedCids.add(currentPostCid);
-                                    savePosts(); // Save after processing each post
-                                }
-                            });
-                        await new Promise((resolve) =>
-                            setTimeout(resolve, 10 * 1000)
+                            );
+                        }
+                        if (currentPostCid) {
+                            processedCids.add(currentPostCid);
+                            savePosts(); // Save after processing each post
+                        }
+                    } catch (error: any) {
+                        log.error(error);
+                        await tgBotInstance.telegram.sendMessage(
+                            process.env.FEED_BOT_CHAT!,
+                            captionMessage,
+                            {
+                                parse_mode: "HTML",
+                            }
                         );
-                    });
-                }
+                        if (currentPostCid) {
+                            processedCids.add(currentPostCid);
+                            savePosts(); // Save after processing each post
+                        }
+                    }
+                    await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+                });
                 log.info("New post: ", postData);
-                currentPostCid = newPost.previousCid;
-                log.info(`Updated currentPostCid to: ${currentPostCid}`);
             } else {
-                log.info("Already processed: ", currentPostCid);
-                const post = await plebbit.getComment(currentPostCid);
-                currentPostCid = post.previousCid;
-                log.info(`Skipped to previous CID: ${currentPostCid}`);
+                log.info(`Already processed CID: ${currentPostCid}`);
             }
-        }
 
+            const previousPost = await plebbit.getComment(currentPostCid);
+            currentPostCid = previousPost.previousCid as string;
+            log.info(`Skipped to previous CID: ${currentPostCid}`);
+        }
     } catch (e) {
         log.error(e);
     }
-    log.info("Finished on ", address);
+    log.info(`Finished processing sub: ${address}`);
 }
-
 
 function loadOldPosts() {
     try {
@@ -173,7 +142,6 @@ function savePosts() {
         log.error("Error saving json file", error);
     }
 }
-
 
 export async function startPlebbitFeedBot(
     tgBotInstance: Telegraf<Scenes.WizardContext>
