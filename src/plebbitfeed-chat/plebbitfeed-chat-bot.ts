@@ -21,14 +21,14 @@ async function scrollPosts(
         log.info("Sub loaded");
         let currentPostCid = subInstance.lastPostCid;
         let counter = 0;
-        
+
         while (currentPostCid && counter < 20) {
             counter += 1;
             log.info(`Processing CID: ${currentPostCid}`);
-            
-            if (!processedCids.has(currentPostCid)) {
+
+            if (currentPostCid && !processedCids.has(currentPostCid)) {
                 log.info(`New CID found: ${currentPostCid}`);
-                
+
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
@@ -42,12 +42,12 @@ async function scrollPosts(
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
-                
+
                 postData.content = postData.content
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
-                
+
                 if (postData.title.length + postData.content.length > 900) {
                     if (postData.title.length > 900) {
                         const truncated = postData.title.substring(0, 900);
@@ -66,9 +66,9 @@ async function scrollPosts(
                             "...";
                     }
                 }
-                
+
                 const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
-                
+
                 if (postData.link) {
                     await queue.add(async () => {
                         tgBotInstance.telegram
@@ -81,8 +81,10 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                processedCids.add(currentPostCid);
-                                savePosts(); // Save after processing each post
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                    savePosts(); // Save after processing each post
+                                }
                             })
                             .catch((error: any) => {
                                 log.error(error);
@@ -96,11 +98,13 @@ async function scrollPosts(
                                         }
                                     )
                                     .then(() => {
-                                        processedCids.add(currentPostCid);
-                                        savePosts(); // Save after processing each post
+                                        if (currentPostCid) {
+                                            processedCids.add(currentPostCid);
+                                            savePosts(); // Save after processing each post
+                                        }
                                     });
                             });
-                
+
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
                         );
@@ -116,8 +120,10 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                processedCids.add(currentPostCid);
-                                savePosts(); // Save after processing each post
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                    savePosts(); // Save after processing each post
+                                }
                             });
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
@@ -134,7 +140,7 @@ async function scrollPosts(
                 log.info(`Skipped to previous CID: ${currentPostCid}`);
             }
         }
-        
+
     } catch (e) {
         log.error(e);
     }
