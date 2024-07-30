@@ -8,7 +8,7 @@ import PQueue from "p-queue";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
-let processedCids: any = {};
+let processedCids: Set<string> = new Set();
 
 async function scrollPosts(
     address: string,
@@ -23,7 +23,7 @@ async function scrollPosts(
         let counter = 0;
         while (currentPostCid && counter < 20) {
             counter += 1;
-            if (!processedCids.Cids.includes(currentPostCid)) {
+            if (currentPostCid && !processedCids.has(currentPostCid)) {
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
@@ -37,11 +37,12 @@ async function scrollPosts(
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
-
+                
                 postData.content = postData.content
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
+                
                 if (postData.title.length + postData.content.length > 900) {
                     if (postData.title.length > 900) {
                         const truncated = postData.title.substring(0, 900);
@@ -60,8 +61,9 @@ async function scrollPosts(
                             "...";
                     }
                 }
+                
                 const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
-
+                
                 if (postData.link) {
                     await queue.add(async () => {
                         tgBotInstance.telegram
@@ -74,8 +76,10 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                processedCids.Cids.push(currentPostCid);
-                                savePosts(); // Save after processing each post
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                    savePosts(); // Save after processing each post
+                                }
                             })
                             .catch((error: any) => {
                                 log.error(error);
@@ -89,11 +93,13 @@ async function scrollPosts(
                                         }
                                     )
                                     .then(() => {
-                                        processedCids.Cids.push(currentPostCid);
-                                        savePosts(); // Save after processing each post
+                                        if (currentPostCid) {
+                                            processedCids.add(currentPostCid);
+                                            savePosts(); // Save after processing each post
+                                        }
                                     });
                             });
-
+                
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
                         );
@@ -109,8 +115,10 @@ async function scrollPosts(
                                 }
                             )
                             .then(() => {
-                                processedCids.Cids.push(currentPostCid);
-                                savePosts(); // Save after processing each post
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                    savePosts(); // Save after processing each post
+                                }
                             });
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
@@ -125,6 +133,7 @@ async function scrollPosts(
                 currentPostCid = post.previousCid;
             }
         }
+        
     } catch (e) {
         log.error(e);
     }
@@ -134,27 +143,29 @@ async function scrollPosts(
 function loadOldPosts() {
     try {
         const data = fs.readFileSync(historyCidsFile, "utf8");
-        processedCids = JSON.parse(data);
-        if (!processedCids.Cids) {
-            processedCids.Cids = [];
-        }
+        const parsedData = JSON.parse(data);
+        processedCids = new Set(parsedData.Cids);
     } catch (error) {
         log.error(error);
-        processedCids = { Cids: [] };
+        processedCids = new Set();
     }
 }
 
 function savePosts() {
     try {
+        const data = {
+            Cids: Array.from(processedCids)
+        };
         fs.writeFileSync(
             historyCidsFile,
-            JSON.stringify(processedCids, null, 2),
+            JSON.stringify(data, null, 2),
             "utf8"
         );
     } catch (error) {
-        log.error("Error saving json file");
+        log.error("Error saving json file", error);
     }
 }
+
 
 export async function startPlebbitFeedBot(
     tgBotInstance: Telegraf<Scenes.WizardContext>
@@ -166,7 +177,7 @@ export async function startPlebbitFeedBot(
     }
     loadOldPosts(); // Load once at the beginning
     while (true) {
-        console.log("Length of loaded posts: ", processedCids.Cids.length);
+        console.log("Length of loaded posts: ", processedCids.size);
         const subs = await fetchSubs();
         await Promise.all(
             subs.map(async (subAddress: string) => {
