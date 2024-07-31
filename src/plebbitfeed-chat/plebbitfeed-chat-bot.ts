@@ -33,6 +33,9 @@ async function scrollPosts(
                     link: newPost.link,
                     cid: newPost.cid,
                     subplebbitAddress: newPost.subplebbitAddress,
+                    timestamp: newPost.timestamp,
+                    removed: newPost.removed ? newPost.removed : false,
+                    deleted: newPost.deleted ? newPost.deleted : false,
                 };
                 postData.title = postData.title
                     .replace(/&/g, "&amp;")
@@ -43,6 +46,22 @@ async function scrollPosts(
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
+
+                // Check if the post is older than 24 hours
+                const currentTime = Math.floor(Date.now() / 1000);
+                if (currentTime - postData.timestamp > 24 * 60 * 60) {
+                    log.info("Post is older than 24 hours, skipping.");
+                    currentPostCid = newPost.previousCid;
+                    continue;
+                }
+
+                // Check i the post is removed or deleted
+                if (postData.removed || postData.deleted) {
+                    log.info("Post is removed or deleted, skipping.");
+                    currentPostCid = newPost.previousCid;
+                    continue;
+                }
+
                 if (postData.title.length + postData.content.length > 900) {
                     if (postData.title.length > 900) {
                         const truncated = postData.title.substring(0, 900);
