@@ -16,29 +16,16 @@ async function scrollPosts(
     plebbit: PlebbitType,
     subInstance: RemoteSubplebbit
 ) {
-    log.info(`Checking sub: ${address}`);
+    log.info("Checking sub: ", address);
     try {
         log.info("Sub loaded");
-        let currentPostCid: string | undefined = subInstance.lastPostCid;
+        let currentPostCid = subInstance.lastPostCid;
         let counter = 0;
-        const oneHourInMillis = 60 * 60 * 1000;
-
         while (currentPostCid && counter < 20) {
             counter += 1;
             log.info(`Processing CID: ${currentPostCid}`);
-
             if (currentPostCid && !processedCids.has(currentPostCid)) {
-                log.info(`New CID found: ${currentPostCid}`);
                 const newPost = await plebbit.getComment(currentPostCid);
-
-                // Check if the post is less than 1 hour old
-                const currentTime = Date.now();
-                if ((currentTime - newPost.timestamp * 1000) > oneHourInMillis) {
-                    log.info(`Post ${currentPostCid} is older than 1 hour, skipping.`);
-                    currentPostCid = newPost.previousCid as string;
-                    continue;
-                }
-
                 const postData = {
                     title: newPost.title ? newPost.title : "",
                     content: newPost.content ? newPost.content : "",
@@ -47,7 +34,6 @@ async function scrollPosts(
                     cid: newPost.cid,
                     subplebbitAddress: newPost.subplebbitAddress,
                 };
-
                 postData.title = postData.title
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
@@ -55,100 +41,118 @@ async function scrollPosts(
 
                 postData.content = postData.content
                     .replace(/&/g, "&amp;")
-                    .replace(/<//g, "&lt;")
+                    .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
-
                 if (postData.title.length + postData.content.length > 900) {
                     if (postData.title.length > 900) {
                         const truncated = postData.title.substring(0, 900);
-                        postData.title = truncated.substring(0, truncated.length - 3) + "...";
-                        postData.content = postData.content.substring(0, 900) + "...";
+                        postData.title =
+                            truncated.substring(0, truncated.length - 3) +
+                            "...";
+                        postData.content =
+                            postData.content.substring(0, 900) + "...";
                     } else {
-                        const truncated = postData.content.substring(0, 900 - postData.title.length);
-                        postData.content = truncated.substring(0, truncated.length - 3) + "...";
+                        const truncated = postData.content.substring(
+                            0,
+                            900 - postData.title.length
+                        );
+                        postData.content =
+                            truncated.substring(0, truncated.length - 3) +
+                            "...";
                     }
                 }
+                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmited on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
 
-                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
-
-                await queue.add(async () => {
-                    try {
-                        if (postData.link) {
-                            await tgBotInstance.telegram.sendPhoto(
+                if (postData.link) {
+                    await queue.add(async () => {
+                        tgBotInstance.telegram
+                            .sendPhoto(
                                 process.env.FEED_BOT_CHAT!,
                                 postData.link!,
                                 {
                                     parse_mode: "HTML",
                                     caption: captionMessage,
                                 }
-                            );
-                        } else {
-                            await tgBotInstance.telegram.sendMessage(
+                            )
+                            .then(() => {
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                }
+                            })
+                            .catch((error: any) => {
+                                log.error(error);
+                                // if the link is not a valid image, send the caption
+                                tgBotInstance.telegram
+                                    .sendMessage(
+                                        process.env.FEED_BOT_CHAT!,
+                                        captionMessage,
+                                        {
+                                            parse_mode: "HTML",
+                                        }
+                                    )
+                                    .then(() => {
+                                        if (currentPostCid) {
+                                            processedCids.add(currentPostCid);
+                                        }
+                                    });
+                            });
+
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 10 * 1000)
+                        );
+                    });
+                } else {
+                    await queue.add(async () => {
+                        tgBotInstance.telegram
+                            .sendMessage(
                                 process.env.FEED_BOT_CHAT!,
                                 captionMessage,
                                 {
                                     parse_mode: "HTML",
                                 }
-                            );
-                        }
-                        if (currentPostCid) {
-                            processedCids.add(currentPostCid);
-                            savePosts(); // Save after processing each post
-                        }
-                    } catch (error: any) {
-                        log.error(error);
-                        await tgBotInstance.telegram.sendMessage(
-                            process.env.FEED_BOT_CHAT!,
-                            captionMessage,
-                            {
-                                parse_mode: "HTML",
-                            }
+                            )
+                            .then(() => {
+                                if (currentPostCid) {
+                                    processedCids.add(currentPostCid);
+                                }
+                            });
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 10 * 1000)
                         );
-                        if (currentPostCid) {
-                            processedCids.add(currentPostCid);
-                            savePosts(); // Save after processing each post
-                        }
-                    }
-                    await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
-                });
+                    });
+                }
                 log.info("New post: ", postData);
+                currentPostCid = newPost.previousCid;
             } else {
-                log.info(`Already processed CID: ${currentPostCid}`);
+                //log.info("Already processsed: ", currentPostCid);
+                const post = await plebbit.getComment(currentPostCid);
+                currentPostCid = post.previousCid;
             }
-
-            const previousPost = await plebbit.getComment(currentPostCid);
-            currentPostCid = previousPost.previousCid as string;
-            log.info(`Skipped to previous CID: ${currentPostCid}`);
         }
     } catch (e) {
         log.error(e);
     }
-    log.info(`Finished processing sub: ${address}`);
+    log.info("Finished on ", address);
 }
 
 function loadOldPosts() {
     try {
         const data = fs.readFileSync(historyCidsFile, "utf8");
-        const parsedData = JSON.parse(data);
-        processedCids = new Set(parsedData.Cids);
+        processedCids = JSON.parse(data);
     } catch (error) {
         log.error(error);
-        processedCids = new Set();
+        throw new Error();
     }
 }
-
 function savePosts() {
     try {
-        const data = {
-            Cids: Array.from(processedCids)
-        };
         fs.writeFileSync(
             historyCidsFile,
-            JSON.stringify(data, null, 2),
+            JSON.stringify(processedCids, null, 2),
             "utf8"
         );
     } catch (error) {
-        log.error("Error saving json file", error);
+        log.error("Error saving json file");
     }
 }
 
@@ -160,8 +164,8 @@ export async function startPlebbitFeedBot(
     if (!process.env.FEED_BOT_CHAT || !process.env.FEED_BOT_CHAT) {
         throw new Error("FEED_BOT_CHAT or BOT_TOKEN not set");
     }
-    loadOldPosts(); // Load once at the beginning
     while (true) {
+        loadOldPosts();
         console.log("Length of loaded posts: ", processedCids.size);
         const subs = await fetchSubs();
         await Promise.all(
@@ -216,10 +220,9 @@ export async function startPlebbitFeedBot(
             })
         );
         log.info("saving new posts");
-        savePosts(); // Save after each cycle
+        savePosts();
     }
 }
-
 
 export async function fetchSubs() {
     let subs = [];
