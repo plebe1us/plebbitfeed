@@ -55,7 +55,7 @@ async function scrollPosts(
                     continue;
                 }
 
-                // Check i the post is removed or deleted
+                // Check if the post is removed or deleted
                 if (postData.removed || postData.deleted) {
                     log.info("Post is removed or deleted, skipping.");
                     currentPostCid = newPost.previousCid;
@@ -157,17 +157,20 @@ async function scrollPosts(
 function loadOldPosts() {
     try {
         const data = fs.readFileSync(historyCidsFile, "utf8");
-        processedCids = JSON.parse(data);
+        const parsedData = JSON.parse(data);
+        processedCids = new Set(parsedData.Cids); // Ensure uniqueness
     } catch (error) {
         log.error(error);
         throw new Error();
     }
 }
+
 function savePosts() {
     try {
+        const dataToSave = { Cids: Array.from(processedCids) };
         fs.writeFileSync(
             historyCidsFile,
-            JSON.stringify(processedCids, null, 2),
+            JSON.stringify(dataToSave, null, 2),
             "utf8"
         );
     } catch (error) {
