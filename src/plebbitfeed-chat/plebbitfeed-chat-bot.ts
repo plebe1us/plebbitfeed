@@ -1,19 +1,20 @@
 import * as fs from "fs";
-import { Scenes, Telegraf } from "telegraf";
+import { Telegraf, Scenes } from "telegraf";
 import { log, plebbit } from "../index.js";
 import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js";
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
 import { bold } from "telegraf/format";
-import { toMarkdownV2 } from "@telegraf/entity";
+import { escapers } from "@telegraf/entity";
 
+const { MarkdownV2 } = escapers;
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 function formatMessage(title: string, content: string, newPost: any): string {
-    return `${bold(toMarkdownV2(title))}\n${toMarkdownV2(content)}\n\nSubmitted on [p/${toMarkdownV2(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}) by u/${toMarkdownV2(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}/c/${toMarkdownV2(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}/c/${toMarkdownV2(newPost.postCid)}/)`;
+    return `${bold(MarkdownV2(title))}\n${MarkdownV2(content)}\n\nSubmitted on [p/${MarkdownV2(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}) by u/${MarkdownV2(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}/c/${MarkdownV2(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}/c/${MarkdownV2(newPost.postCid)}/)`;
 }
 
 async function scrollPosts(
