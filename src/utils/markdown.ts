@@ -18,7 +18,7 @@ function escapeMarkdownV2(text: string): string {
         .replace(/\+/g, '\\+')
         .replace(/-/g, '\\-')
         .replace(/=/g, '\\=')
-        .replace(/\|/g, '\\|')
+        .replace(/\|/g, '\\|')  // Ensure '|' is escaped
         .replace(/{/g, '\\{')
         .replace(/}/g, '\\}')
         .replace(/\./g, '\\.')
