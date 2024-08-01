@@ -38,7 +38,7 @@ async function scrollPosts(
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
-                    content: newPost.content ? escapeMarkdown(newPost.content) : "",
+                    content: newPost.content ? newPost.content : "",
                     postCid: newPost.postCid,
                     link: newPost.link,
                     cid: newPost.cid,
@@ -82,7 +82,9 @@ async function scrollPosts(
                     }
                 }
 
-                const captionMessage = `*${escapeMarkdown(postData.title)}*\n${escapeMarkdown(postData.content)}\n\nSubmitted on [p/${escapeMarkdown(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}) by u/${escapeMarkdown(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}/c/${newPost.postCid}/)`;
+                let captionMessage = `*${postData.title}*\n${postData.content}\n\nSubmitted on [p/${newPost.subplebbitAddress}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
+
+                captionMessage = escapeMarkdown(captionMessage);
 
                 if (postData.link) {
                     await queue.add(async () => {
