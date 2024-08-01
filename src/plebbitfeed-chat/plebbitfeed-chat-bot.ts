@@ -5,14 +5,11 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
+const { escapeMarkdown } = require('./escapeUtils');
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
-
-function escapeMarkdownV2(text: string) {
-    return text.replace(/([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1');
-}
 
 async function scrollPosts(
     address: string,
@@ -32,7 +29,7 @@ async function scrollPosts(
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
-                    content: newPost.content ? escapeMarkdownV2(newPost.content) : "",
+                    content: newPost.content ? escapeMarkdown(newPost.content) : "",
                     postCid: newPost.postCid,
                     link: newPost.link,
                     cid: newPost.cid,
