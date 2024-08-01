@@ -5,23 +5,11 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-import MarkdownIt from "markdown-it";
-import sanitizeHtml from "sanitize-html";
+import { sanitizeMarkdown } from "../utils/markdown.js";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
-
-const md = new MarkdownIt();
-function sanitizeMarkdown(content: string): string {
-    // Sanitize HTML tags
-    const sanitizedContent = sanitizeHtml(content, {
-        allowedTags: [],
-        allowedAttributes: {}
-    });
-    // Parse and escape Markdown content
-    return md.renderInline(sanitizedContent);
-}
 
 async function scrollPosts(
     address: string,
