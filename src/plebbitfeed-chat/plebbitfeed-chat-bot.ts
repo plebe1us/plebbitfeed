@@ -5,12 +5,20 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-const { escapeMarkdown } = require('./escapeUtils');
 
-const queue = new PQueue({ concurrency: 1 });
-const historyCidsFile = "history.json";
-let processedCids: Set<string> = new Set();
-
+const escapeMarkdown = (text: string) => {
+    const markdownV2EscapeList = [
+      "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
+    ];
+    return markdownV2EscapeList.reduce((acc, char) => {
+      return acc.split(char).join(`\\${char}`);
+    }, text);
+  };
+  
+  const queue = new PQueue({ concurrency: 1 });
+  const historyCidsFile = "history.json";
+  let processedCids: Set<string> = new Set();
+  
 async function scrollPosts(
     address: string,
     tgBotInstance: Telegraf<Scenes.WizardContext>,
