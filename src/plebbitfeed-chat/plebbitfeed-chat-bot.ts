@@ -8,13 +8,13 @@ import PQueue from "p-queue";
 import { bold } from "telegraf/format";
 import { escapers } from "@telegraf/entity";
 
-const { MarkdownV2 } = escapers;
+const { MarkdownV2: escape } = escapers;
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 function formatMessage(title: string, content: string, newPost: any): string {
-    return `${bold(MarkdownV2(title))}\n${MarkdownV2(content)}\n\nSubmitted on [p/${MarkdownV2(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}) by u/${MarkdownV2(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}/c/${MarkdownV2(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${MarkdownV2(newPost.subplebbitAddress)}/c/${MarkdownV2(newPost.postCid)}/)`;
+    return `${bold(escape(title))}\n${escape(content)}\n\nSubmitted on [p/${escape(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${escape(newPost.subplebbitAddress)}) by u/${escape(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${escape(newPost.subplebbitAddress)}/c/${escape(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${escape(newPost.subplebbitAddress)}/c/${escape(newPost.postCid)}/)`;
 }
 
 async function scrollPosts(
