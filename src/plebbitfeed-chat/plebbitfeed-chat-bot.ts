@@ -5,10 +5,23 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
+import MarkdownIt from "markdown-it";
+import sanitizeHtml from "sanitize-html";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
+
+const md = new MarkdownIt();
+function sanitizeMarkdown(content: string): string {
+    // Sanitize HTML tags
+    const sanitizedContent = sanitizeHtml(content, {
+        allowedTags: [],
+        allowedAttributes: {}
+    });
+    // Parse and escape Markdown content
+    return md.renderInline(sanitizedContent);
+}
 
 async function scrollPosts(
     address: string,
@@ -37,15 +50,6 @@ async function scrollPosts(
                     removed: newPost.removed ? newPost.removed : false,
                     deleted: newPost.deleted ? newPost.deleted : false,
                 };
-                postData.title = postData.title
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;");
-
-                postData.content = postData.content
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;");
 
                 // Check if the post is older than 24 hours
                 const currentTime = Math.floor(Date.now() / 1000);
@@ -80,7 +84,8 @@ async function scrollPosts(
                             "...";
                     }
                 }
-                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
+
+                const captionMessage = `*${sanitizeMarkdown(postData.title)}*\n${sanitizeMarkdown(postData.content)}\n\nSubmitted on [p/${sanitizeMarkdown(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${sanitizeMarkdown(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
 
                 if (postData.link) {
                     await queue.add(async () => {
@@ -89,7 +94,7 @@ async function scrollPosts(
                                 process.env.FEED_BOT_CHAT!,
                                 postData.link!,
                                 {
-                                    parse_mode: "HTML",
+                                    parse_mode: "MarkdownV2",
                                     caption: captionMessage,
                                 }
                             )
@@ -106,7 +111,7 @@ async function scrollPosts(
                                         process.env.FEED_BOT_CHAT!,
                                         captionMessage,
                                         {
-                                            parse_mode: "HTML",
+                                            parse_mode: "MarkdownV2",
                                         }
                                     )
                                     .then(() => {
@@ -127,7 +132,7 @@ async function scrollPosts(
                                 process.env.FEED_BOT_CHAT!,
                                 captionMessage,
                                 {
-                                    parse_mode: "HTML",
+                                    parse_mode: "MarkdownV2",
                                 }
                             )
                             .then(() => {
