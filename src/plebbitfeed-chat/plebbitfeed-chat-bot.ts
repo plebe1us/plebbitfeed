@@ -1,25 +1,15 @@
 import * as fs from "fs";
-import { Telegraf, Scenes } from "telegraf";
+import { Scenes, Telegraf } from "telegraf";
 import { log, plebbit } from "../index.js";
 import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js";
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
 
-const escapeMarkdown = (text: string) => {
-    const markdownV2EscapeList = [
-        "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
-    ];
-    return markdownV2EscapeList.reduce((acc, char) => {
-        const escapedChar = `\\${char}`;
-        return acc.split(char).join(escapedChar);
-    }, text);
-};
+const queue = new PQueue({ concurrency: 1 });
+const historyCidsFile = "history.json";
+let processedCids: Set<string> = new Set();
 
-  const queue = new PQueue({ concurrency: 1 });
-  const historyCidsFile = "history.json";
-  let processedCids: Set<string> = new Set();
-  
 async function scrollPosts(
     address: string,
     tgBotInstance: Telegraf<Scenes.WizardContext>,
@@ -47,6 +37,15 @@ async function scrollPosts(
                     removed: newPost.removed ? newPost.removed : false,
                     deleted: newPost.deleted ? newPost.deleted : false,
                 };
+                postData.title = postData.title
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+
+                postData.content = postData.content
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
 
                 // Check if the post is older than 24 hours
                 const currentTime = Math.floor(Date.now() / 1000);
@@ -81,10 +80,7 @@ async function scrollPosts(
                             "...";
                     }
                 }
-
-                let captionMessage = `*${postData.title}*\n${postData.content}\n\nSubmitted on [p/${newPost.subplebbitAddress}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
-
-                captionMessage = escapeMarkdown(captionMessage);
+                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
 
                 if (postData.link) {
                     await queue.add(async () => {
@@ -93,7 +89,7 @@ async function scrollPosts(
                                 process.env.FEED_BOT_CHAT!,
                                 postData.link!,
                                 {
-                                    parse_mode: "MarkdownV2",
+                                    parse_mode: "HTML",
                                     caption: captionMessage,
                                 }
                             )
@@ -110,7 +106,7 @@ async function scrollPosts(
                                         process.env.FEED_BOT_CHAT!,
                                         captionMessage,
                                         {
-                                            parse_mode: "MarkdownV2",
+                                            parse_mode: "HTML",
                                         }
                                     )
                                     .then(() => {
@@ -131,7 +127,7 @@ async function scrollPosts(
                                 process.env.FEED_BOT_CHAT!,
                                 captionMessage,
                                 {
-                                    parse_mode: "MarkdownV2",
+                                    parse_mode: "HTML",
                                 }
                             )
                             .then(() => {
