@@ -74,6 +74,8 @@ async function scrollPosts(
                 }
 
                 const captionMessage = `*${sanitizeMarkdown(postData.title)}*\n${sanitizeMarkdown(postData.content)}\n\nSubmitted on [p/${sanitizeMarkdown(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${sanitizeMarkdown(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
+                
+                console.log("Generated captionMessage: ", captionMessage);
 
                 if (postData.link) {
                     await queue.add(async () => {

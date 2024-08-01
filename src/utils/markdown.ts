@@ -9,6 +9,7 @@ function escapeMarkdownV2(text: string): string {
         .replace(/_/g, '\\_')
         .replace(/\*/g, '\\*')
         .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
         .replace(/\(/g, '\\(')
         .replace(/\)/g, '\\)')
         .replace(/~/g, '\\~')
@@ -18,12 +19,12 @@ function escapeMarkdownV2(text: string): string {
         .replace(/\+/g, '\\+')
         .replace(/-/g, '\\-')
         .replace(/=/g, '\\=')
-        .replace(/\|/g, '\\|')  // Ensure '|' is escaped
+        .replace(/\|/g, '\\|')  // Escape pipe
         .replace(/{/g, '\\{')
         .replace(/}/g, '\\}')
         .replace(/\./g, '\\.')
-        .replace(/!/g, '\\!');
-        // Note: Do not escape the ] character as it's treated as normal if [ is escaped
+        .replace(/!/g, '\\!')
+        .replace(/@/g, '\\@');  // Escape @
 }
 
 function sanitizeMarkdown(content: string): string {
