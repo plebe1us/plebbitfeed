@@ -5,14 +5,15 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-import { entities } from "@telegraf/entity";
+import { bold } from "telegraf/format";
+import { toMarkdownV2 } from "@telegraf/entity";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 function formatMessage(title: string, content: string, newPost: any): string {
-    return `${entities.bold(entities.escape(title))}\n${entities.escape(content)}\n\nSubmitted on [p/${entities.escape(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}) by u/${entities.escape(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}/c/${entities.escape(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}/c/${entities.escape(newPost.postCid)}/)`;
+    return `${bold(toMarkdownV2(title))}\n${toMarkdownV2(content)}\n\nSubmitted on [p/${toMarkdownV2(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}) by u/${toMarkdownV2(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}/c/${toMarkdownV2(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${toMarkdownV2(newPost.subplebbitAddress)}/c/${toMarkdownV2(newPost.postCid)}/)`;
 }
 
 async function scrollPosts(
