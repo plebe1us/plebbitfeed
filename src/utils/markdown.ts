@@ -5,10 +5,11 @@ const md = new MarkdownIt();
 
 function escapeMarkdownV2(text: string): string {
     return text
+        .replace(/\\/g, '\\\\')  // escape the backslash first
         .replace(/_/g, '\\_')
         .replace(/\*/g, '\\*')
         .replace(/\[/g, '\\[')
-        .replace(/]/g, '\\]')
+        .replace(/\]/g, '\\]')
         .replace(/\(/g, '\\(')
         .replace(/\)/g, '\\)')
         .replace(/~/g, '\\~')
@@ -22,8 +23,7 @@ function escapeMarkdownV2(text: string): string {
         .replace(/{/g, '\\{')
         .replace(/}/g, '\\}')
         .replace(/\./g, '\\.')
-        .replace(/!/g, '\\!')
-        .replace(/\\/g, '\\\\'); // escape the backslash itself
+        .replace(/!/g, '\\!');
 }
 
 function sanitizeMarkdown(content: string): string {
