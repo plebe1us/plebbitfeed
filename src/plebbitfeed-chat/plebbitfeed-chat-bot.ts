@@ -5,21 +5,13 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-import { bold } from "telegraf/format";
-import { toMarkdownV2 } from "@telegraf/entity";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
-function formatMessage(title: string, content: string, newPost: any): string {
-    const titleText = { text: title, entities: [] };
-    const contentText = { text: content, entities: [] };
-    const subplebbitAddressText = { text: newPost.subplebbitAddress, entities: [] };
-    const authorText = { text: newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress, entities: [] };
-    const postCidText = { text: newPost.postCid, entities: [] };
-
-    return `${bold(toMarkdownV2(titleText))}\n${toMarkdownV2(contentText)}\n\nSubmitted on [p/${toMarkdownV2(subplebbitAddressText)}](https://plebchan.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}) by u/${toMarkdownV2(authorText)}\n[View on Seedit](https://seedit.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}/c/${toMarkdownV2(postCidText)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}/c/${toMarkdownV2(postCidText)}/)`;
+function escapeMarkdownV2(text: string) {
+    return text.replace(/([\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])/g, '\\$1');
 }
 
 async function scrollPosts(
@@ -40,7 +32,7 @@ async function scrollPosts(
                 const newPost = await plebbit.getComment(currentPostCid);
                 const postData = {
                     title: newPost.title ? newPost.title : "",
-                    content: newPost.content ? newPost.content : "",
+                    content: newPost.content ? escapeMarkdownV2(newPost.content) : "",
                     postCid: newPost.postCid,
                     link: newPost.link,
                     cid: newPost.cid,
@@ -84,7 +76,7 @@ async function scrollPosts(
                     }
                 }
 
-                const captionMessage = formatMessage(postData.title, postData.content, newPost);
+                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmited on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by ${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n<a href="https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Seedit</a> | <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/">View on Plebchan</a>`;
 
                 if (postData.link) {
                     await queue.add(async () => {

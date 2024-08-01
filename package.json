@@ -16,7 +16,6 @@
     "dependencies": {
         "@keyv/sqlite": "3.6.7",
         "@plebbit/plebbit-js": "git+https://github.com/plebbit/plebbit-js.git",
-        "@telegraf/entity": "0.5.0",
         "@telegraf/session": "2.0.0-beta.7",
         "@types/node-cron": "3.0.11",
         "dotenv": "16.4.5",
