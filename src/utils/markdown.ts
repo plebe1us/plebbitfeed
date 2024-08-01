@@ -4,15 +4,27 @@ import sanitizeHtml from 'sanitize-html';
 const md = new MarkdownIt();
 
 function escapeMarkdownV2(text: string): string {
-    const escapeChars = [
-        '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'
-    ];
-    let escapedText = text;
-    escapeChars.forEach(char => {
-        const escapedChar = '\\' + char;
-        escapedText = escapedText.split(char).join(escapedChar);
-    });
-    return escapedText;
+    return text
+        .replace(/\\/g, '\\\\') // Escape backslashes first
+        .replace(/_/g, '\\_')
+        .replace(/\*/g, '\\*')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/~/g, '\\~')
+        .replace(/`/g, '\\`')
+        .replace(/>/g, '\\>')
+        .replace(/#/g, '\\#')
+        .replace(/\+/g, '\\+')
+        .replace(/-/g, '\\-')
+        .replace(/=/g, '\\=')
+        .replace(/\|/g, '\\|')
+        .replace(/{/g, '\\{')
+        .replace(/}/g, '\\}')
+        .replace(/\./g, '\\.')
+        .replace(/!/g, '\\!')
+        .replace(/\\/g, '\\\\') // Escape the backslash itself last
 }
 
 function sanitizeMarkdown(content: string): string {
