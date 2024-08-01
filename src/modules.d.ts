@@ -1,2 +1,1 @@
-declare module 'markdown-it';
-declare module 'sanitize-html';
+declare module '@telegraf/entity';

@@ -5,11 +5,15 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-import { sanitizeMarkdown } from "../utils/markdown.js";
+import { entities } from "@telegraf/entity";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
+
+function formatMessage(title: string, content: string, newPost: any): string {
+    return `${entities.bold(entities.escape(title))}\n${entities.escape(content)}\n\nSubmitted on [p/${entities.escape(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}) by u/${entities.escape(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}/c/${entities.escape(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${entities.escape(newPost.subplebbitAddress)}/c/${entities.escape(newPost.postCid)}/)`;
+}
 
 async function scrollPosts(
     address: string,
@@ -73,9 +77,7 @@ async function scrollPosts(
                     }
                 }
 
-                const captionMessage = `*${sanitizeMarkdown(postData.title)}*\n${sanitizeMarkdown(postData.content)}\n\nSubmitted on [p/${sanitizeMarkdown(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${sanitizeMarkdown(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
-                
-                console.log("Generated captionMessage: ", captionMessage);
+                const captionMessage = formatMessage(postData.title, postData.content, newPost);
 
                 if (postData.link) {
                     await queue.add(async () => {
