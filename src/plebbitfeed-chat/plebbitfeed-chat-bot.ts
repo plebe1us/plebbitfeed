@@ -8,13 +8,14 @@ import PQueue from "p-queue";
 
 const escapeMarkdown = (text: string) => {
     const markdownV2EscapeList = [
-      "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
+        "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"
     ];
     return markdownV2EscapeList.reduce((acc, char) => {
-      return acc.split(char).join(`\\${char}`);
+        const escapedChar = `\\${char}`;
+        return acc.split(char).join(escapedChar);
     }, text);
-  };
-  
+};
+
   const queue = new PQueue({ concurrency: 1 });
   const historyCidsFile = "history.json";
   let processedCids: Set<string> = new Set();
@@ -81,7 +82,7 @@ async function scrollPosts(
                     }
                 }
 
-                const captionMessage = `*${postData.title}*\n${postData.content}\n\nSubmitted on [p/${newPost.subplebbitAddress}](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}) by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}\n[View on Seedit](https://seedit.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}/c/${newPost.postCid}/)`;
+                const captionMessage = `*${escapeMarkdown(postData.title)}*\n${escapeMarkdown(postData.content)}\n\nSubmitted on [p/${escapeMarkdown(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}) by u/${escapeMarkdown(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}/c/${newPost.postCid}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${escapeMarkdown(newPost.subplebbitAddress)}/c/${newPost.postCid}/)`;
 
                 if (postData.link) {
                     await queue.add(async () => {
