@@ -6,15 +6,20 @@ import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
 import { bold } from "telegraf/format";
-import { escapers } from "@telegraf/entity";
+import { toMarkdownV2 } from "@telegraf/entity";
 
-const { MarkdownV2: escape } = escapers;
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 function formatMessage(title: string, content: string, newPost: any): string {
-    return `${bold(escape(title))}\n${escape(content)}\n\nSubmitted on [p/${escape(newPost.subplebbitAddress)}](https://plebchan.eth.limo/#/p/${escape(newPost.subplebbitAddress)}) by u/${escape(newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress)}\n[View on Seedit](https://seedit.eth.limo/#/p/${escape(newPost.subplebbitAddress)}/c/${escape(newPost.postCid)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${escape(newPost.subplebbitAddress)}/c/${escape(newPost.postCid)}/)`;
+    const titleText = { text: title, entities: [] };
+    const contentText = { text: content, entities: [] };
+    const subplebbitAddressText = { text: newPost.subplebbitAddress, entities: [] };
+    const authorText = { text: newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress, entities: [] };
+    const postCidText = { text: newPost.postCid, entities: [] };
+
+    return `${bold(toMarkdownV2(titleText))}\n${toMarkdownV2(contentText)}\n\nSubmitted on [p/${toMarkdownV2(subplebbitAddressText)}](https://plebchan.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}) by u/${toMarkdownV2(authorText)}\n[View on Seedit](https://seedit.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}/c/${toMarkdownV2(postCidText)}/) | [View on Plebchan](https://plebchan.eth.limo/#/p/${toMarkdownV2(subplebbitAddressText)}/c/${toMarkdownV2(postCidText)}/)`;
 }
 
 async function scrollPosts(
