@@ -13,15 +13,6 @@ import { MessageService } from "../services/message.service.js";
 import { Comment } from "@plebbit/plebbit-js/dist/node/publications/comment/comment.js";
 import { fetchSubs } from "../plebbitfeed-chat/plebbitfeed-chat-bot.js";
 
-// process only if the username is 'plebeius'
-plebbitFeedTgBot.on('message', (ctx) => {
-    if (ctx.from.username === 'plebeius') {
-        console.log(`Message received from ${ctx.from.username}:`, ctx.message);
-    } else {
-        // Ignore all other users
-        return;
-    }
-});
 
 const userService = new UserService();
 const messageService = new MessageService();
@@ -437,6 +428,16 @@ export async function isUserRegistered(
 }
 
 export async function startplebbitfeedBot(bot: Telegraf<Scenes.WizardContext>) {
+     // process only if the username is 'plebeius'
+     bot.on('message', (ctx) => {
+        if (ctx.from.username === 'plebeius') {
+            console.log(`Message received from ${ctx.from.username}:`, ctx.message);
+        } else {
+            // Ignore all other users
+            return;
+        }
+    });
+
     const subsFetched = await fetchSubs();
     monospaceSubList = subsFetched
         .map((sub: string) => `<code>${sub}</code>`)
