@@ -438,6 +438,17 @@ export async function startplebbitfeedBot(bot: Telegraf<Scenes.WizardContext>) {
         }
     });
 
+    bot.command('stop', async (ctx) => {
+        if (ctx.from.username === 'plebeius') {
+            await ctx.reply('Bot is stopping...');
+            console.log(`Bot is being stopped by ${ctx.from.username}`);
+            process.exit(0);  // This will stop the bot
+        } else {
+            await ctx.reply('You do not have permission to stop the bot.');
+            console.log(`Unauthorized stop attempt by ${ctx.from.username}`);
+        }
+    });
+
     const subsFetched = await fetchSubs();
     monospaceSubList = subsFetched
         .map((sub: string) => `<code>${sub}</code>`)
