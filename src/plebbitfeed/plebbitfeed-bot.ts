@@ -13,10 +13,14 @@ import { MessageService } from "../services/message.service.js";
 import { Comment } from "@plebbit/plebbit-js/dist/node/publications/comment/comment.js";
 import { fetchSubs } from "../plebbitfeed-chat/plebbitfeed-chat-bot.js";
 
-// After importing everything and before other handlers
+// process only if the username is 'plebeius'
 plebbitFeedTgBot.on('message', (ctx) => {
-    // Ignore all incoming messages
-    return;
+    if (ctx.from.username === 'plebeius') {
+        console.log(`Message received from ${ctx.from.username}:`, ctx.message);
+    } else {
+        // Ignore all other users
+        return;
+    }
 });
 
 const userService = new UserService();
