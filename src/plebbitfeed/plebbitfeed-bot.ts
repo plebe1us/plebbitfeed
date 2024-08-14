@@ -13,6 +13,12 @@ import { MessageService } from "../services/message.service.js";
 import { Comment } from "@plebbit/plebbit-js/dist/node/publications/comment/comment.js";
 import { fetchSubs } from "../plebbitfeed-chat/plebbitfeed-chat-bot.js";
 
+// After importing everything and before other handlers
+plebbitFeedTgBot.on('message', (ctx) => {
+    // Ignore all incoming messages
+    return;
+});
+
 const userService = new UserService();
 const messageService = new MessageService();
 const plebbitService = new PlebbitService();
