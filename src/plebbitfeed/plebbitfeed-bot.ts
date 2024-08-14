@@ -442,7 +442,7 @@ export async function startplebbitfeedBot(bot: Telegraf<Scenes.WizardContext>) {
         if (ctx.from.username === 'plebeius') {
             await ctx.reply('Bot is stopping...');
             console.log(`Bot is being stopped by ${ctx.from.username}`);
-            process.exit(0);  // This will stop the bot
+            process.kill(process.pid);  // This will stop the bot
         } else {
             await ctx.reply('You do not have permission to stop the bot.');
             console.log(`Unauthorized stop attempt by ${ctx.from.username}`);
