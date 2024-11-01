@@ -91,6 +91,20 @@ async function scrollPosts(
                                 {
                                     parse_mode: "HTML",
                                     caption: captionMessage,
+                                    reply_markup: {
+                                        inline_keyboard: [
+                                            [
+                                                {
+                                                    text: "View on Seedit",
+                                                    url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                },
+                                                {
+                                                    text: "View on Plebchan",
+                                                    url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                }
+                                            ]
+                                        ]
+                                    }
                                 }
                             )
                             .then(() => {
@@ -107,6 +121,20 @@ async function scrollPosts(
                                         captionMessage,
                                         {
                                             parse_mode: "HTML",
+                                            reply_markup: {
+                                                inline_keyboard: [
+                                                    [
+                                                        {
+                                                            text: "View on Seedit",
+                                                            url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                        },
+                                                        {
+                                                            text: "View on Plebchan",
+                                                            url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                        }
+                                                    ]
+                                                ]
+                                            }
                                         }
                                     )
                                     .then(() => {
@@ -128,6 +156,20 @@ async function scrollPosts(
                                 captionMessage,
                                 {
                                     parse_mode: "HTML",
+                                    reply_markup: {
+                                        inline_keyboard: [
+                                            [
+                                                {
+                                                    text: "View on Seedit",
+                                                    url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                },
+                                                {
+                                                    text: "View on Plebchan",
+                                                    url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`
+                                                }
+                                            ]
+                                        ]
+                                    }
                                 }
                             )
                             .then(() => {
