@@ -21,11 +21,23 @@ async function scrollPosts(
         log.info("Sub loaded");
         let currentPostCid = subInstance.lastPostCid;
         let counter = 0;
+        const twelveHoursAgo = Math.floor(Date.now() / 1000) - (12 * 60 * 60);
+
         while (currentPostCid && counter < 20) {
             counter += 1;
             log.info(`Processing CID: ${currentPostCid}`);
-            if (currentPostCid && !processedCids.has(currentPostCid)) {
-                const newPost = await plebbit.getComment(currentPostCid);
+            
+            // Get post data regardless of whether it's been processed before
+            const newPost = await plebbit.getComment(currentPostCid);
+            
+            // Check timestamp first - if too old, stop processing this sub entirely
+            if (newPost.timestamp < twelveHoursAgo) {
+                log.info("Post is older than 12 hours, stopping sub processing");
+                break;
+            }
+
+            // Only process if not already processed
+            if (!processedCids.has(currentPostCid)) {
                 const postData = {
                     title: newPost.title ? newPost.title : "",
                     content: newPost.content ? newPost.content : "",
@@ -37,6 +49,7 @@ async function scrollPosts(
                     removed: newPost.removed ? newPost.removed : false,
                     deleted: newPost.deleted ? newPost.deleted : false,
                 };
+
                 postData.title = postData.title
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
@@ -202,11 +215,10 @@ function loadOldPosts() {
         const parsedData = JSON.parse(data);
         processedCids = new Set(parsedData.Cids); // Ensure uniqueness
     } catch (error) {
-        log.error(error);
-        throw new Error();
+        log.error("Could not load history file, starting fresh");
+        processedCids = new Set(); // Start with empty set instead of throwing error
     }
 }
-
 function savePosts() {
     try {
         const dataToSave = { Cids: Array.from(processedCids) };
