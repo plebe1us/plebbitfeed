@@ -220,6 +220,79 @@ function savePosts() {
     }
 }
 
+async function testWithFakePosts(tgBotInstance: Telegraf<Scenes.WizardContext>) {
+    const testPosts = [
+        {
+            title: "Test Post 1",
+            content: "This is test content 1",
+            postCid: "testcid1",
+            link: "https://picsum.photos/200/300",
+            cid: "testcid1",
+            subplebbitAddress: "technology.eth",
+            timestamp: Math.floor(Date.now() / 1000),
+            removed: false,
+            deleted: false,
+            author: {
+                address: "test.eth",
+                shortAddress: "test",
+            },
+            previousCid: "testcid2"
+        },
+        {
+            title: "Test Post 2",
+            content: "This is test content 2",
+            postCid: "testcid2",
+            link: "https://picsum.photos/200/300",
+            cid: "testcid2",
+            subplebbitAddress: "technology.eth",
+            timestamp: Math.floor(Date.now() / 1000),
+            removed: false,
+            deleted: false,
+            author: {
+                address: "test.eth",
+                shortAddress: "test",
+            },
+            previousCid: "testcid3"
+        },
+        {
+            title: "Test Post 3",
+            content: "This is test content 3",
+            postCid: "testcid3",
+            link: "https://picsum.photos/200/300",
+            cid: "testcid3",
+            subplebbitAddress: "technology.eth",
+            timestamp: Math.floor(Date.now() / 1000),
+            removed: false,
+            deleted: false,
+            author: {
+                address: "test.eth",
+                shortAddress: "test",
+            },
+            previousCid: null
+        }
+    ];
+
+    // Mock the plebbit.getComment function
+    const mockPlebbit = {
+        getComment: async (cid: string) => {
+            return testPosts.find(p => p.postCid === cid);
+        }
+    };
+
+    // Mock the subplebbit instance
+    const mockSubInstance = {
+        address: "technology.eth",
+        lastPostCid: "testcid1"
+    };
+
+    await scrollPosts(
+        "technology.eth",
+        tgBotInstance,
+        mockPlebbit as any,
+        mockSubInstance as any
+    );
+}
+
 export async function startPlebbitFeedBot(
     tgBotInstance: Telegraf<Scenes.WizardContext>
 ) {
@@ -228,6 +301,11 @@ export async function startPlebbitFeedBot(
     if (!process.env.FEED_BOT_CHAT || !process.env.FEED_BOT_CHAT) {
         throw new Error("FEED_BOT_CHAT or BOT_TOKEN not set");
     }
+
+    // Run test posts first
+    await testWithFakePosts(tgBotInstance);
+
+    // Continue with normal operation
     while (true) {
         loadOldPosts();
         console.log("Length of loaded posts: ", processedCids.size);
