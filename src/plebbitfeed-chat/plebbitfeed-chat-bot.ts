@@ -5,7 +5,6 @@ import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
-import telegramifyMarkdown from "telegramify-markdown";
 
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
@@ -47,9 +46,6 @@ async function scrollPosts(
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;");
-
-                // Convert markdown to HTML
-                postData.content = telegramifyMarkdown(postData.content, 'keep');
 
                 // Check if the post is older than 24 hours
                 const currentTime = Math.floor(Date.now() / 1000);
