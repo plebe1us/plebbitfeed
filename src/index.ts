@@ -34,7 +34,7 @@ export const plebbit = await Plebbit({
         chainId: 1
       },
       avax: {
-        "urls": [
+        urls: [
           "https://api.avax.network/ext/bc/C/rpc"
         ],
         chainId: 43114
