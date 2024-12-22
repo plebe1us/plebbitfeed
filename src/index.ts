@@ -24,6 +24,28 @@ export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
 export const plebbit = await Plebbit({
     ipfsGatewayUrls: ["https://rannithepleb.com/api/v0"],
     ipfsHttpClientsOptions: [`http://localhost:5001/api/v0`],
+    chainProviders: {
+      eth: {
+        urls: [
+          "ethers.js",
+          "https://ethrpc.xyz",
+          "viem"
+        ],
+        chainId: 1
+      },
+      avax: {
+        "urls": [
+          "https://api.avax.network/ext/bc/C/rpc"
+        ],
+        chainId: 43114
+      },
+      matic: {
+        urls: [
+          "https://polygon-rpc.com"
+        ],
+        chainId: 137
+      }
+    }
 });
 plebbit.on("error", (error) => {
     log.error(error.details);
