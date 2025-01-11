@@ -22,8 +22,7 @@ export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
 );
 
 export const plebbit = await Plebbit({
-    ipfsGatewayUrls: ["https://rannithepleb.com/api/v0"],
-    ipfsHttpClientsOptions: [`http://localhost:5001/api/v0`],
+    ipfsHttpClientsOptions: [`http://localhost:50019/api/v0`],
     chainProviders: {
       eth: {
         urls: [
