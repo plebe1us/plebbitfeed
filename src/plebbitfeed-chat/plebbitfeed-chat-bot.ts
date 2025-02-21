@@ -80,7 +80,7 @@ async function scrollPosts(
                             "...";
                     }
                 }
-                const captionMessage = `<b>${postData.title}</b>\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
+                const captionMessage = `<b>${postData.title ? (postData.title + " ") : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
 
                 if (postData.link) {
                     await queue.add(async () => {
@@ -91,6 +91,7 @@ async function scrollPosts(
                                 {
                                     parse_mode: "HTML",
                                     caption: captionMessage,
+                                    has_spoiler: newPost.spoiler || newPost.nsfw,
                                     reply_markup: {
                                         inline_keyboard: [
                                             [
