@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import { startPlebbitFeedBot } from "./plebbitfeed-chat/plebbitfeed-chat-bot.js";
 import { Scenes, Telegraf } from "telegraf";
-import { startplebbitfeedBot } from "./plebbitfeed/plebbitfeed-bot.js";
 import { Logger } from "tslog";
 import Plebbit from "@plebbit/plebbit-js";
 import { Agent } from "https";
@@ -62,7 +61,6 @@ const start = async () => {
                 );
         await Promise.all([
             startPlebbitFeedBot(plebbitFeedTgBot),
-            startplebbitfeedBot(plebbitFeedTgBot),
         ]);
     } catch (error) {
         log.error(error);
