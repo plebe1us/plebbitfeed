@@ -46,7 +46,7 @@ export const plebbit = await Plebbit({
       }
     }
 });
-plebbit.on("error", (error) => {
+plebbit.on("error", (error: any) => {
     log.error(error.details);
 });
 
