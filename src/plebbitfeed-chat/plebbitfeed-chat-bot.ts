@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { Scenes, Telegraf } from "telegraf";
 import { log, plebbit } from "../index.js";
-import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit.js";
+import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit/plebbit.js";
 import fetch from "node-fetch";
 import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";

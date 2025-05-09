@@ -1,11 +1,10 @@
-import { Markup, Scenes, Telegraf, session } from "telegraf";
+import { Markup, Scenes, Telegraf } from "telegraf";
 import { UserService } from "../services/user.service.js";
-import { Redis } from "@telegraf/session/redis";
 import { PlebbitService } from "../services/plebbit.service.js";
 import { User } from "../models/user.js";
 import { Signer } from "@plebbit/plebbit-js/dist/node/signer/index.js";
 import { log, plebbit, plebbitFeedTgBot } from "../index.js";
-import Vote from "@plebbit/plebbit-js/dist/node/publications/vote.js";
+import Vote from "@plebbit/plebbit-js/dist/node/publications/vote/vote.js";
 import { message } from "telegraf/filters";
 import { inspect } from "util";
 import Jimp from "jimp";
