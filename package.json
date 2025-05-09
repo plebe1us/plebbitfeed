@@ -15,7 +15,7 @@
     "license": "ISC",
     "dependencies": {
         "@keyv/sqlite": "3.6.7",
-        "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#cae33a888fc23248d2f226d9d14b67c80dee7f28",
+        "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#a2cb6ca6462b2e2e3b66f71204375a81ed05cf80",
         "@telegraf/session": "2.0.0-beta.7",
         "@types/node-cron": "3.0.11",
         "dotenv": "16.4.5",
