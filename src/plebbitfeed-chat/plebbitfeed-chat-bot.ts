@@ -142,6 +142,9 @@ async function scrollPosts(
                                         if (currentPostCid) {
                                             processedCids.add(currentPostCid);
                                         }
+                                    })
+                                    .catch((fallbackError: any) => {
+                                        log.error(fallbackError);
                                     });
                             });
 
@@ -177,6 +180,9 @@ async function scrollPosts(
                                 if (currentPostCid) {
                                     processedCids.add(currentPostCid);
                                 }
+                            })
+                            .catch((error: any) => {
+                                log.error(error);
                             });
                         await new Promise((resolve) =>
                             setTimeout(resolve, 10 * 1000)
