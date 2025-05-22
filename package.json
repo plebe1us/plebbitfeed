@@ -37,6 +37,6 @@
         "tsx": "4.7.1"
     },
     "resolutions": {
-        "skia-canvas": "^1.1.0"
+        "skia-canvas": "2.0.2"
     }
 }
