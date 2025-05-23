@@ -1,9 +1,7 @@
 import * as fs from "fs";
 import { Scenes, Telegraf } from "telegraf";
 import { log, plebbit } from "../index.js";
-import { Plebbit as PlebbitType } from "@plebbit/plebbit-js/dist/node/plebbit/plebbit.js";
 import fetch from "node-fetch";
-import { RemoteSubplebbit } from "@plebbit/plebbit-js/dist/node/subplebbit/remote-subplebbit.js";
 import PQueue from "p-queue";
 
 const queue = new PQueue({ concurrency: 1 });
@@ -13,8 +11,8 @@ let processedCids: Set<string> = new Set();
 async function scrollPosts(
     address: string,
     tgBotInstance: Telegraf<Scenes.WizardContext>,
-    plebbit: PlebbitType,
-    subInstance: RemoteSubplebbit
+    plebbit: typeof import("../index.js").plebbit,
+    subInstance: any
 ) {
     log.info("Checking sub: ", address);
     try {
