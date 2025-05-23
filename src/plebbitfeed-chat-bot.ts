@@ -77,94 +77,101 @@ async function scrollPosts(
         }
         const captionMessage = `<b>${postData.title ? postData.title + " " : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
 
+        // Get list of chat IDs to send to
+        const chatIds = getChatIds();
+
         if (postData.link) {
           await queue.add(async () => {
-            tgBotInstance.telegram
-              .sendPhoto(process.env.FEED_BOT_CHAT!, postData.link!, {
-                parse_mode: "HTML",
-                caption: captionMessage,
-                has_spoiler: newPost.spoiler || newPost.nsfw,
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      {
-                        text: "View on Seedit",
-                        url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                      },
-                      {
-                        text: "View on Plebchan",
-                        url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                      },
-                    ],
-                  ],
-                },
-              })
-              .then(() => {
-                if (currentPostCid) {
-                  processedCids.add(currentPostCid);
-                }
-              })
-              .catch((error: any) => {
-                log.error(error);
-                // if the link is not a valid image, send the caption
-                tgBotInstance.telegram
-                  .sendMessage(process.env.FEED_BOT_CHAT!, captionMessage, {
-                    parse_mode: "HTML",
-                    reply_markup: {
-                      inline_keyboard: [
-                        [
-                          {
-                            text: "View on Seedit",
-                            url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                          },
-                          {
-                            text: "View on Plebchan",
-                            url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                          },
-                        ],
+            // Send to all configured chats
+            const sendPromises = chatIds.map(chatId => 
+              tgBotInstance.telegram
+                .sendPhoto(chatId, postData.link!, {
+                  parse_mode: "HTML",
+                  caption: captionMessage,
+                  has_spoiler: newPost.spoiler || newPost.nsfw,
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: "View on Seedit",
+                          url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                        },
+                        {
+                          text: "View on Plebchan",
+                          url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                        },
                       ],
-                    },
-                  })
-                  .then(() => {
-                    if (currentPostCid) {
-                      processedCids.add(currentPostCid);
-                    }
-                  })
-                  .catch((fallbackError: any) => {
-                    log.error(fallbackError);
-                  });
-              });
+                    ],
+                  },
+                })
+                .catch((error: any) => {
+                  log.error(`Error sending photo to ${chatId}:`, error);
+                  // if the link is not a valid image, send the caption
+                  return tgBotInstance.telegram
+                    .sendMessage(chatId, captionMessage, {
+                      parse_mode: "HTML",
+                      reply_markup: {
+                        inline_keyboard: [
+                          [
+                            {
+                              text: "View on Seedit",
+                              url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                            },
+                            {
+                              text: "View on Plebchan",
+                              url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                            },
+                          ],
+                        ],
+                      },
+                    })
+                    .catch((fallbackError: any) => {
+                      log.error(`Fallback error for ${chatId}:`, fallbackError);
+                    });
+                })
+            );
+
+            await Promise.allSettled(sendPromises);
+            
+            if (currentPostCid) {
+              processedCids.add(currentPostCid);
+            }
 
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         } else {
           await queue.add(async () => {
-            tgBotInstance.telegram
-              .sendMessage(process.env.FEED_BOT_CHAT!, captionMessage, {
-                parse_mode: "HTML",
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      {
-                        text: "View on Seedit",
-                        url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                      },
-                      {
-                        text: "View on Plebchan",
-                        url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                      },
+            // Send to all configured chats
+            const sendPromises = chatIds.map(chatId =>
+              tgBotInstance.telegram
+                .sendMessage(chatId, captionMessage, {
+                  parse_mode: "HTML",
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        {
+                          text: "View on Seedit",
+                          url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                        },
+                        {
+                          text: "View on Plebchan",
+                          url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                        },
+                      ],
                     ],
-                  ],
-                },
-              })
-              .then(() => {
-                if (currentPostCid) {
-                  processedCids.add(currentPostCid);
-                }
-              })
-              .catch((error: any) => {
-                log.error(error);
-              });
+                  },
+                })
+                .catch((error: any) => {
+                  log.error(`Error sending message to ${chatId}:`, error);
+                })
+            );
+
+            await Promise.allSettled(sendPromises);
+            
+            if (currentPostCid) {
+              processedCids.add(currentPostCid);
+            }
+            
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         }
@@ -180,6 +187,23 @@ async function scrollPosts(
     log.error(e);
   }
   log.info("Finished on ", address);
+}
+
+// Helper function to get list of chat IDs
+function getChatIds(): string[] {
+  const chatIds: string[] = [];
+  
+  // Add primary channel/chat
+  if (process.env.FEED_BOT_CHAT) {
+    chatIds.push(process.env.FEED_BOT_CHAT);
+  }
+  
+  // Add secondary group
+  if (process.env.FEED_BOT_GROUP) {
+    chatIds.push(process.env.FEED_BOT_GROUP);
+  }
+  
+  return chatIds;
 }
 
 function loadOldPosts() {
@@ -211,9 +235,14 @@ export async function startPlebbitFeedBot(
 ) {
   log.info("Starting plebbit feed bot");
 
-  if (!process.env.FEED_BOT_CHAT || !process.env.FEED_BOT_CHAT) {
-    throw new Error("FEED_BOT_CHAT or BOT_TOKEN not set");
+  if (!process.env.FEED_BOT_CHAT && !process.env.FEED_BOT_GROUP) {
+    throw new Error("At least one of FEED_BOT_CHAT or FEED_BOT_GROUP must be set");
   }
+  
+  if (!process.env.BOT_TOKEN) {
+    throw new Error("BOT_TOKEN not set");
+  }
+
   while (true) {
     loadOldPosts();
     console.log("Length of loaded posts: ", processedCids.size);
