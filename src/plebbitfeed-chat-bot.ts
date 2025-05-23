@@ -75,7 +75,7 @@ async function scrollPosts(
               truncated.substring(0, truncated.length - 3) + "...";
           }
         }
-        const captionMessage = `<b>${postData.title ? postData.title + " " : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://plebchan.eth.limo/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
+        const captionMessage = `<b>${postData.title ? postData.title + " " : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://seedit.app/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
 
         // Get list of chat IDs to send to
         const chatIds = getChatIds();
@@ -94,11 +94,11 @@ async function scrollPosts(
                       [
                         {
                           text: "View on Seedit",
-                          url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                          url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                         },
                         {
                           text: "View on Plebchan",
-                          url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                          url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                         },
                       ],
                     ],
@@ -115,11 +115,11 @@ async function scrollPosts(
                           [
                             {
                               text: "View on Seedit",
-                              url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                              url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                             },
                             {
                               text: "View on Plebchan",
-                              url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                              url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                             },
                           ],
                         ],
@@ -151,11 +151,11 @@ async function scrollPosts(
                       [
                         {
                           text: "View on Seedit",
-                          url: `https://seedit.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                          url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                         },
                         {
                           text: "View on Plebchan",
-                          url: `https://plebchan.eth.limo/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                          url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
                         },
                       ],
                     ],
