@@ -4,6 +4,7 @@ import Logger from "@plebbit/plebbit-logger";
 import { plebbit } from "./index.js";
 import fetch from "node-fetch";
 import PQueue from "p-queue";
+import { getShortAddress } from "@plebbit/plebbit-js";
 
 const log = Logger('plebbitfeed:bot');
 const queue = new PQueue({ concurrency: 1 });
@@ -77,7 +78,7 @@ async function scrollPosts(
               truncated.substring(0, truncated.length - 3) + "...";
           }
         }
-        const captionMessage = `<b>${postData.title ? postData.title + " " : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://seedit.app/#/p/${newPost.subplebbitAddress}">p/${newPost.subplebbitAddress}</a> by u/${newPost.author.address.includes(".") ? newPost.author.address : newPost.author.shortAddress}`;
+        const captionMessage = `<b>${postData.title ? postData.title + " " : ""}</b>${newPost.spoiler ? "[SPOILER]" : newPost.nsfw ? "[NSFW]" : ""}\n${postData.content}\n\nSubmitted on <a href="https://seedit.app/#/p/${newPost.subplebbitAddress}">p/${getShortAddress(newPost.subplebbitAddress)}</a> by u/${getShortAddress(newPost.author.address)}`;
 
         // Get list of chat IDs to send to
         const chatIds = getChatIds();
