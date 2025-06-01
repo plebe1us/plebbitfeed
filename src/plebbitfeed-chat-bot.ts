@@ -10,7 +10,7 @@ const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 // Media type detection helpers
-function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'embeddable' | 'document' | null {
+function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'animation' | 'embeddable' | null {
   try {
     const parsedUrl = new URL(url);
     
@@ -26,10 +26,11 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'embedd
     if (extensionMatch) {
       const extension = extensionMatch[1];
       
-      // Define file type mappings
-      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'ico'];
-      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'm4v', 'wmv', 'ogv', '3gp'];
-      const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'opus'];
+      // Define file type mappings for supported Telegram media types only
+      const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff'];
+      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'm4v', '3gp'];
+      const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'opus'];
+      const animationExtensions = ['gif', 'gifv']; // Special handling for animations
       
       if (imageExtensions.includes(extension)) {
         return 'image';
@@ -37,8 +38,11 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'embedd
         return 'video';
       } else if (audioExtensions.includes(extension)) {
         return 'audio';
+      } else if (animationExtensions.includes(extension)) {
+        return 'animation';
       } else {
-        return 'document';
+        // Return null for unsupported extensions to trigger fallback to text message
+        return null;
       }
     }
     
@@ -50,40 +54,49 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'embedd
 }
 
 function isEmbeddablePlatform(parsedUrl: URL): boolean {
-  const embeddableHosts = new Set([
+  const embeddableDomains = [
     // YouTube
-    'youtube.com', 'www.youtube.com', 'youtu.be', 'www.youtu.be', 'm.youtube.com', 'music.youtube.com',
+    'youtube.com', 'youtu.be',
     // Twitter/X
-    'twitter.com', 'www.twitter.com', 'x.com', 'www.x.com',
+    'twitter.com', 'x.com',
     // TikTok
-    'tiktok.com', 'www.tiktok.com',
+    'tiktok.com',
     // Instagram
-    'instagram.com', 'www.instagram.com',
+    'instagram.com',
     // Twitch
-    'twitch.tv', 'www.twitch.tv',
+    'twitch.tv',
     // Reddit
-    'reddit.com', 'www.reddit.com', 'old.reddit.com',
+    'reddit.com',
     // Others
-    'odysee.com', 'www.odysee.com',
-    'bitchute.com', 'www.bitchute.com',
-    'streamable.com', 'www.streamable.com',
-    'spotify.com', 'www.spotify.com', 'open.spotify.com',
-    'soundcloud.com', 'www.soundcloud.com', 'on.soundcloud.com',
-  ]);
+    'odysee.com',
+    'bitchute.com',
+    'streamable.com',
+    'spotify.com',
+    'soundcloud.com',
+  ];
   
-  return embeddableHosts.has(parsedUrl.host) || (parsedUrl.host.startsWith('yt.') && parsedUrl.searchParams.has('v'));
+  const host = parsedUrl.host;
+  
+  // Check for exact match or subdomain match (host ends with .domain.com)
+  for (const domain of embeddableDomains) {
+    if (host === domain || host.endsWith(`.${domain}`)) {
+      return true;
+    }
+  }
+  
+  // Special case for YouTube Invidious instances
+  return host.startsWith('yt.') && parsedUrl.searchParams.has('v');
 }
 
-async function sendMediaToChat(
+async function sendMediaToChatWithParsedType(
   tgBotInstance: Telegraf<Scenes.WizardContext>,
   chatId: string,
   url: string,
   caption: string,
   replyMarkup: any,
-  hasSpoiler: boolean = false
+  hasSpoiler: boolean = false,
+  mediaType: 'image' | 'video' | 'audio' | 'animation' | 'embeddable' | null
 ): Promise<void> {
-  const mediaType = getMediaTypeFromUrl(url);
-  
   try {
     switch (mediaType) {
       case 'image':
@@ -112,46 +125,35 @@ async function sendMediaToChat(
         });
         break;
         
-      case 'embeddable':
-        // For embeddable content, send the URL as a message to get Telegram's link preview
-        const messageWithLink = `${caption}\n\n🔗 ${url}`;
-        await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
+      case 'animation':
+        await tgBotInstance.telegram.sendAnimation(chatId, url, {
           parse_mode: "HTML",
+          caption: caption,
+          has_spoiler: hasSpoiler,
           reply_markup: replyMarkup,
         });
         break;
         
-      case 'document':
-        await tgBotInstance.telegram.sendDocument(chatId, url, {
+      case 'embeddable':
+        // For embeddable content, send the URL as a message to get Telegram's link preview
+        await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
           parse_mode: "HTML",
-          caption: caption,
           reply_markup: replyMarkup,
         });
         break;
         
       default:
-        // Fallback: try as photo first, then as message
-        try {
-          await tgBotInstance.telegram.sendPhoto(chatId, url, {
-            parse_mode: "HTML",
-            caption: caption,
-            has_spoiler: hasSpoiler,
-            reply_markup: replyMarkup,
-          });
-        } catch (photoError) {
-          // If photo fails, send as message with link
-          const messageWithLink = `${caption}\n\n🔗 ${url}`;
-          await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
-            parse_mode: "HTML",
-            reply_markup: replyMarkup,
-          });
-        }
+        // For null/unsupported media types, send as message with link
+        await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
+          parse_mode: "HTML",
+          reply_markup: replyMarkup,
+        });
+        break;
     }
   } catch (error) {
     log.error(`Error sending ${mediaType} to ${chatId}:`, error);
     // Fallback to text message
-    const messageWithLink = `${caption}\n\n🔗 ${url}`;
-    await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
+    await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
       parse_mode: "HTML",
       reply_markup: replyMarkup,
     });
@@ -247,15 +249,20 @@ async function scrollPosts(
               ],
             };
 
+            // Parse URL once per media item, not per chat
+            const linkUrl = postData.link!; // We're already inside the if (postData.link) block
+            const mediaType = getMediaTypeFromUrl(linkUrl);
+
             // Send to all configured chats
             const sendPromises = chatIds.map(chatId => 
-              sendMediaToChat(
+              sendMediaToChatWithParsedType(
                 tgBotInstance,
                 chatId,
-                postData.link!,
+                linkUrl,
                 captionMessage,
                 replyMarkup,
-                newPost.spoiler || newPost.nsfw
+                newPost.spoiler || newPost.nsfw,
+                mediaType
               ).catch((error: any) => {
                 log.error(`Error sending media to ${chatId}:`, error);
               })
