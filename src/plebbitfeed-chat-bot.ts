@@ -9,6 +9,155 @@ const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
+// Media type detection helpers
+function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'embeddable' | 'document' | null {
+  try {
+    const parsedUrl = new URL(url);
+    
+    // Check for embeddable platforms first
+    if (isEmbeddablePlatform(parsedUrl)) {
+      return 'embeddable';
+    }
+    
+    // Extract extension from pathname
+    const pathname = parsedUrl.pathname.toLowerCase();
+    const extensionMatch = pathname.match(/\.([^.]+)$/);
+    
+    if (extensionMatch) {
+      const extension = extensionMatch[1];
+      
+      // Define file type mappings
+      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'ico'];
+      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'm4v', 'wmv', 'ogv', '3gp'];
+      const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'opus'];
+      
+      if (imageExtensions.includes(extension)) {
+        return 'image';
+      } else if (videoExtensions.includes(extension)) {
+        return 'video';
+      } else if (audioExtensions.includes(extension)) {
+        return 'audio';
+      } else {
+        return 'document';
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    log.error('Error parsing URL:', error);
+    return null;
+  }
+}
+
+function isEmbeddablePlatform(parsedUrl: URL): boolean {
+  const embeddableHosts = new Set([
+    // YouTube
+    'youtube.com', 'www.youtube.com', 'youtu.be', 'www.youtu.be', 'm.youtube.com', 'music.youtube.com',
+    // Twitter/X
+    'twitter.com', 'www.twitter.com', 'x.com', 'www.x.com',
+    // TikTok
+    'tiktok.com', 'www.tiktok.com',
+    // Instagram
+    'instagram.com', 'www.instagram.com',
+    // Twitch
+    'twitch.tv', 'www.twitch.tv',
+    // Reddit
+    'reddit.com', 'www.reddit.com', 'old.reddit.com',
+    // Others
+    'odysee.com', 'www.odysee.com',
+    'bitchute.com', 'www.bitchute.com',
+    'streamable.com', 'www.streamable.com',
+    'spotify.com', 'www.spotify.com', 'open.spotify.com',
+    'soundcloud.com', 'www.soundcloud.com', 'on.soundcloud.com',
+  ]);
+  
+  return embeddableHosts.has(parsedUrl.host) || (parsedUrl.host.startsWith('yt.') && parsedUrl.searchParams.has('v'));
+}
+
+async function sendMediaToChat(
+  tgBotInstance: Telegraf<Scenes.WizardContext>,
+  chatId: string,
+  url: string,
+  caption: string,
+  replyMarkup: any,
+  hasSpoiler: boolean = false
+): Promise<void> {
+  const mediaType = getMediaTypeFromUrl(url);
+  
+  try {
+    switch (mediaType) {
+      case 'image':
+        await tgBotInstance.telegram.sendPhoto(chatId, url, {
+          parse_mode: "HTML",
+          caption: caption,
+          has_spoiler: hasSpoiler,
+          reply_markup: replyMarkup,
+        });
+        break;
+        
+      case 'video':
+        await tgBotInstance.telegram.sendVideo(chatId, url, {
+          parse_mode: "HTML",
+          caption: caption,
+          has_spoiler: hasSpoiler,
+          reply_markup: replyMarkup,
+        });
+        break;
+        
+      case 'audio':
+        await tgBotInstance.telegram.sendAudio(chatId, url, {
+          parse_mode: "HTML",
+          caption: caption,
+          reply_markup: replyMarkup,
+        });
+        break;
+        
+      case 'embeddable':
+        // For embeddable content, send the URL as a message to get Telegram's link preview
+        const messageWithLink = `${caption}\n\n🔗 ${url}`;
+        await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
+          parse_mode: "HTML",
+          reply_markup: replyMarkup,
+        });
+        break;
+        
+      case 'document':
+        await tgBotInstance.telegram.sendDocument(chatId, url, {
+          parse_mode: "HTML",
+          caption: caption,
+          reply_markup: replyMarkup,
+        });
+        break;
+        
+      default:
+        // Fallback: try as photo first, then as message
+        try {
+          await tgBotInstance.telegram.sendPhoto(chatId, url, {
+            parse_mode: "HTML",
+            caption: caption,
+            has_spoiler: hasSpoiler,
+            reply_markup: replyMarkup,
+          });
+        } catch (photoError) {
+          // If photo fails, send as message with link
+          const messageWithLink = `${caption}\n\n🔗 ${url}`;
+          await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
+            parse_mode: "HTML",
+            reply_markup: replyMarkup,
+          });
+        }
+    }
+  } catch (error) {
+    log.error(`Error sending ${mediaType} to ${chatId}:`, error);
+    // Fallback to text message
+    const messageWithLink = `${caption}\n\n🔗 ${url}`;
+    await tgBotInstance.telegram.sendMessage(chatId, messageWithLink, {
+      parse_mode: "HTML",
+      reply_markup: replyMarkup,
+    });
+  }
+}
+
 async function scrollPosts(
   address: string,
   tgBotInstance: Telegraf<Scenes.WizardContext>,
@@ -83,53 +232,33 @@ async function scrollPosts(
 
         if (postData.link) {
           await queue.add(async () => {
+            const replyMarkup = {
+              inline_keyboard: [
+                [
+                  {
+                    text: "View on Seedit",
+                    url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                  },
+                  {
+                    text: "View on Plebchan",
+                    url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
+                  },
+                ],
+              ],
+            };
+
             // Send to all configured chats
             const sendPromises = chatIds.map(chatId => 
-              tgBotInstance.telegram
-                .sendPhoto(chatId, postData.link!, {
-                  parse_mode: "HTML",
-                  caption: captionMessage,
-                  has_spoiler: newPost.spoiler || newPost.nsfw,
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        {
-                          text: "View on Seedit",
-                          url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                        },
-                        {
-                          text: "View on Plebchan",
-                          url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                        },
-                      ],
-                    ],
-                  },
-                })
-                .catch((error: any) => {
-                  log.error(`Error sending photo to ${chatId}:`, error);
-                  // if the link is not a valid image, send the caption
-                  return tgBotInstance.telegram
-                    .sendMessage(chatId, captionMessage, {
-                      parse_mode: "HTML",
-                      reply_markup: {
-                        inline_keyboard: [
-                          [
-                            {
-                              text: "View on Seedit",
-                              url: `https://seedit.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                            },
-                            {
-                              text: "View on Plebchan",
-                              url: `https://plebchan.app/#/p/${postData.subplebbitAddress}/c/${postData.cid}`,
-                            },
-                          ],
-                        ],
-                      },
-                    })
-                    .catch((fallbackError: any) => {
-                      log.error(`Fallback error for ${chatId}:`, fallbackError);
-                    });
-                })
+              sendMediaToChat(
+                tgBotInstance,
+                chatId,
+                postData.link!,
+                captionMessage,
+                replyMarkup,
+                newPost.spoiler || newPost.nsfw
+              ).catch((error: any) => {
+                log.error(`Error sending media to ${chatId}:`, error);
+              })
             );
 
             await Promise.allSettled(sendPromises);
