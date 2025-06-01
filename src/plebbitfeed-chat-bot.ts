@@ -28,9 +28,9 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'animat
       
       // Define file type mappings for supported Telegram media types only
       const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff'];
-      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'm4v', '3gp'];
+      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'm4v', '3gp', 'gifv']; // gifv is actually video
       const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'opus'];
-      const animationExtensions = ['gif', 'gifv']; // Special handling for animations
+      const animationExtensions = ['gif']; // Only true GIF animations
       
       if (imageExtensions.includes(extension)) {
         return 'image';
@@ -75,17 +75,17 @@ function isEmbeddablePlatform(parsedUrl: URL): boolean {
     'soundcloud.com',
   ];
   
-  const host = parsedUrl.host;
+  const hostname = parsedUrl.hostname;
   
-  // Check for exact match or subdomain match (host ends with .domain.com)
+  // Check for exact match or subdomain match (hostname ends with .domain.com)
   for (const domain of embeddableDomains) {
-    if (host === domain || host.endsWith(`.${domain}`)) {
+    if (hostname === domain || hostname.endsWith(`.${domain}`)) {
       return true;
     }
   }
   
   // Special case for YouTube Invidious instances
-  return host.startsWith('yt.') && parsedUrl.searchParams.has('v');
+  return hostname.startsWith('yt.') && parsedUrl.searchParams.has('v');
 }
 
 async function sendMediaToChatWithParsedType(
