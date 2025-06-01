@@ -1,12 +1,10 @@
 import * as fs from "fs";
 import { Scenes, Telegraf } from "telegraf";
-import Logger from "@plebbit/plebbit-logger";
-import { plebbit } from "./index.js";
+import { log, plebbit } from "./index.js";
 import fetch from "node-fetch";
 import PQueue from "p-queue";
 import { getShortAddress } from "@plebbit/plebbit-js";
 
-const log = Logger('plebbitfeed:bot');
 const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
@@ -17,14 +15,14 @@ async function scrollPosts(
   plebbit: typeof import("./index.js").plebbit,
   subInstance: any,
 ) {
-  log("Checking sub: ", address);
+  log.info("Checking sub: ", address);
   try {
-    log("Sub loaded");
+    log.info("Sub loaded");
     let currentPostCid = subInstance.lastPostCid;
     let counter = 0;
     while (currentPostCid && counter < 20) {
       counter += 1;
-      log(`Processing CID: ${currentPostCid}`);
+      log.info(`Processing CID: ${currentPostCid}`);
       if (currentPostCid && !processedCids.has(currentPostCid)) {
         const newPost = await plebbit.getComment(currentPostCid);
         const postData = {
@@ -51,14 +49,14 @@ async function scrollPosts(
         // Check if the post is older than 24 hours
         const currentTime = Math.floor(Date.now() / 1000);
         if (currentTime - postData.timestamp > 24 * 60 * 60) {
-          log("Post is older than 24 hours, skipping.");
+          log.info("Post is older than 24 hours, skipping.");
           currentPostCid = newPost.previousCid;
           continue;
         }
 
         // Check if the post is removed or deleted
         if (postData.removed || postData.deleted) {
-          log("Post is removed or deleted, skipping.");
+          log.info("Post is removed or deleted, skipping.");
           currentPostCid = newPost.previousCid;
           continue;
         }
@@ -178,7 +176,7 @@ async function scrollPosts(
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         }
-        log("New post: ", postData);
+        log.info("New post: ", postData);
         currentPostCid = newPost.previousCid;
       } else {
         //log.info("Already processsed: ", currentPostCid);
@@ -189,7 +187,7 @@ async function scrollPosts(
   } catch (e) {
     log.error(e);
   }
-  log("Finished on ", address);
+  log.info("Finished on ", address);
 }
 
 // Helper function to get list of chat IDs
@@ -236,7 +234,7 @@ function savePosts() {
 export async function startPlebbitFeedBot(
   tgBotInstance: Telegraf<Scenes.WizardContext>,
 ) {
-  log("Starting plebbit feed bot");
+  log.info("Starting plebbit feed bot");
 
   if (!process.env.FEED_BOT_CHAT && !process.env.FEED_BOT_GROUP) {
     throw new Error("At least one of FEED_BOT_CHAT or FEED_BOT_GROUP must be set");
@@ -253,7 +251,7 @@ export async function startPlebbitFeedBot(
     await Promise.all(
       subs.map(async (subAddress: string) => {
         try {
-          log("Loading sub ", subAddress);
+          log.info("Loading sub ", subAddress);
           const startTime = performance.now();
           const subInstance: any = await Promise.race([
             plebbit.getSubplebbit(subAddress),
@@ -267,7 +265,7 @@ export async function startPlebbitFeedBot(
             }),
           ]);
           const endTime = performance.now();
-          log("Time to load sub: ", endTime - startTime);
+          log.info("Time to load sub: ", endTime - startTime);
           if (subInstance.address) {
             await Promise.race([
               scrollPosts(
@@ -292,12 +290,12 @@ export async function startPlebbitFeedBot(
             ]);
           }
         } catch (e) {
-          log(e);
-          log(subAddress);
+          log.info(e);
+          log.info(subAddress);
         }
       }),
     );
-    log("saving new posts");
+    log.info("saving new posts");
     savePosts();
   }
 }

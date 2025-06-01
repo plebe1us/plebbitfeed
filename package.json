@@ -15,12 +15,12 @@
     "license": "GPL-2.0-only",
     "dependencies": {
         "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#bfee76312bf28732c276c2341acf266cc96910ad",
-        "@plebbit/plebbit-logger": "github:plebbit/plebbit-logger#355a96d7659ed820047980049dfa627d30d83a69",
         "dotenv": "16.4.5",
         "fs": "0.0.1-security",
         "node-fetch": "3.3.2",
         "p-queue": "8.0.1",
         "telegraf": "4.16.3",
+        "tslog": "4.9.2",
         "typescript": "5.3.3"
     },
     "devDependencies": {

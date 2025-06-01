@@ -1,11 +1,11 @@
 import dotenv from "dotenv";
 import { startPlebbitFeedBot } from "./plebbitfeed-chat-bot.js";
 import { Scenes, Telegraf } from "telegraf";
-import Logger from "@plebbit/plebbit-logger";
+import { Logger } from "tslog";
 import Plebbit from "@plebbit/plebbit-js";
 import { Agent } from "https";
 
-export const log = Logger('plebbitfeed:main');
+export const log = new Logger();
 dotenv.config();
 
 if (!process.env.BOT_TOKEN) {
