@@ -447,7 +447,13 @@ export async function fetchSubs() {
     } else {
       const data: any = await response.json();
 
-      subs = data.subplebbits.map((obj: any) => obj.address);
+      // Filter out subplebbits with adult or gore tags
+      subs = data.subplebbits
+        .filter((obj: any) => {
+          const tags = obj.tags || [];
+          return !tags.includes("adult") && !tags.includes("gore");
+        })
+        .map((obj: any) => obj.address);
     }
   } catch (error) {
     log.error("Error:", error);
