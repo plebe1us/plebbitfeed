@@ -373,8 +373,8 @@ function loadOldPosts() {
     const parsedData = JSON.parse(data);
     processedCids = new Set(parsedData.Cids); // Ensure uniqueness
   } catch (error) {
-    log.error('Error loading old posts:', error instanceof Error ? error.message : String(error));
-    throw new Error();
+    log.warn('Could not load old posts, starting with empty history:', error instanceof Error ? error.message : String(error));
+    processedCids = new Set(); // Initialize with empty set
   }
 }
 
