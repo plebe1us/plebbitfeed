@@ -14,7 +14,7 @@
     },
     "license": "GPL-2.0-only",
     "dependencies": {
-        "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#bfee76312bf28732c276c2341acf266cc96910ad",
+        "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#692ec349f01aa6d8e939ff1d6d07315ab92e4099",
         "dotenv": "16.4.5",
         "fs": "0.0.1-security",
         "node-fetch": "3.3.2",
