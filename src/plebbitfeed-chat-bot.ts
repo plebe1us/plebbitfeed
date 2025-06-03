@@ -208,10 +208,11 @@ async function scrollPosts(
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
 
-        // Check if the post is older than 24 hours
+        // Check if the post is older than 2 days (for failed retries) or 24 hours (for new posts)
         const currentTime = Math.floor(Date.now() / 1000);
-        if (currentTime - postData.timestamp > 24 * 60 * 60) {
-          log.info("Post is older than 24 hours, skipping.");
+        const maxAge = 2 * 24 * 60 * 60; // 2 days in seconds
+        if (currentTime - postData.timestamp > maxAge) {
+          log.info("Post is older than 2 days, skipping retry.");
           currentPostCid = newPost.previousCid;
           continue;
         }
@@ -276,12 +277,18 @@ async function scrollPosts(
                 mediaType
               ).catch((error: any) => {
                 log.error(`Error sending media to ${chatId}:`, error);
+                return false; // Return false to indicate failure
               })
             );
 
-            await Promise.allSettled(sendPromises);
+            const results = await Promise.allSettled(sendPromises);
             
-            if (currentPostCid) {
+            // Only mark as processed if at least one message was sent successfully
+            const hasSuccessfulSend = results.some(result => 
+              result.status === 'fulfilled' && result.value !== false
+            );
+            
+            if (currentPostCid && hasSuccessfulSend) {
               processedCids.add(currentPostCid);
             }
 
@@ -311,12 +318,18 @@ async function scrollPosts(
                 })
                 .catch((error: any) => {
                   log.error(`Error sending message to ${chatId}:`, error);
+                  return false; // Return false to indicate failure
                 })
             );
 
-            await Promise.allSettled(sendPromises);
+            const results = await Promise.allSettled(sendPromises);
             
-            if (currentPostCid) {
+            // Only mark as processed if at least one message was sent successfully
+            const hasSuccessfulSend = results.some(result => 
+              result.status === 'fulfilled' && result.value !== false
+            );
+            
+            if (currentPostCid && hasSuccessfulSend) {
               processedCids.add(currentPostCid);
             }
             
