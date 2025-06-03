@@ -336,7 +336,7 @@ async function scrollPosts(
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         }
-        log.info("New post: ", postData);
+        log.info(`New post: ${postData.title || 'No title'} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)}`);
         currentPostCid = newPost.previousCid;
       } else {
         //log.info("Already processsed: ", currentPostCid);
@@ -345,7 +345,7 @@ async function scrollPosts(
       }
     }
   } catch (e) {
-    log.error(e);
+    log.error('Error in scrollPosts for address:', address, 'Error message:', e instanceof Error ? e.message : String(e));
   }
   log.info("Finished on ", address);
 }
@@ -373,7 +373,7 @@ function loadOldPosts() {
     const parsedData = JSON.parse(data);
     processedCids = new Set(parsedData.Cids); // Ensure uniqueness
   } catch (error) {
-    log.error(error);
+    log.error('Error loading old posts:', error instanceof Error ? error.message : String(error));
     throw new Error();
   }
 }
@@ -450,8 +450,7 @@ export async function startPlebbitFeedBot(
             ]);
           }
         } catch (e) {
-          log.info(e);
-          log.info(subAddress);
+          log.error(`Error processing subplebbit ${subAddress}:`, e instanceof Error ? e.message : String(e));
         }
       }),
     );
@@ -480,7 +479,7 @@ export async function fetchSubs() {
         .map((obj: any) => obj.address);
     }
   } catch (error) {
-    log.error("Error:", error);
+    log.error("Error fetching subs:", error instanceof Error ? error.message : String(error));
   }
   return subs;
 }
