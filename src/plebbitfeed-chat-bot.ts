@@ -142,21 +142,14 @@ async function sendMediaToChatWithParsedType(
             reply_markup: replyMarkup,
           });
         } catch (embedError) {
-          // If embeddable fails, try as photo first, then fall back to text
-          try {
-            await tgBotInstance.telegram.sendPhoto(chatId, url, {
-              parse_mode: "HTML",
-              caption: caption,
-              has_spoiler: hasSpoiler,
-              reply_markup: replyMarkup,
-            });
-          } catch (photoError) {
-            // Final fallback to text message
-            await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
-              parse_mode: "HTML",
-              reply_markup: replyMarkup,
-            });
-          }
+          log.error(`Error sending embeddable message to ${chatId}:`, embedError);
+          // If embeddable fails, try as photo to get thumbnail
+          await tgBotInstance.telegram.sendPhoto(chatId, url, {
+            parse_mode: "HTML",
+            caption: caption,
+            has_spoiler: hasSpoiler,
+            reply_markup: replyMarkup,
+          });
         }
         break;
         
