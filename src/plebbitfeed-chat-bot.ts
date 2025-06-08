@@ -135,21 +135,40 @@ async function sendMediaToChatWithParsedType(
         break;
         
       case 'embeddable':
-        // For embeddable content, send the URL as a message to get Telegram's link preview
-        try {
-          await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
-            parse_mode: "HTML",
-            reply_markup: replyMarkup,
-          });
-        } catch (embedError) {
-          log.error(`Error sending embeddable message to ${chatId}:`, embedError);
-          // If embeddable fails, try as photo to get thumbnail
-          await tgBotInstance.telegram.sendPhoto(chatId, url, {
-            parse_mode: "HTML",
-            caption: caption,
-            has_spoiler: hasSpoiler,
-            reply_markup: replyMarkup,
-          });
+        if (hasSpoiler) {
+          try {
+            // Attempt to send as a spoilered video, which works for YouTube, etc.
+            await tgBotInstance.telegram.sendVideo(chatId, url, {
+              parse_mode: "HTML",
+              caption: caption,
+              has_spoiler: true,
+              reply_markup: replyMarkup,
+            });
+          } catch (videoError) {
+            log.info(`Could not send spoilered embeddable as video to ${chatId}, falling back to spoilered link.`);
+            // If sending as a video fails, send a spoilered link (no preview)
+            await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 <tg-spoiler>${url}</tg-spoiler>`, {
+              parse_mode: "HTML",
+              reply_markup: replyMarkup,
+            });
+          }
+        } else {
+          // For embeddable content, send the URL as a message to get Telegram's link preview
+          try {
+            await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
+              parse_mode: "HTML",
+              reply_markup: replyMarkup,
+            });
+          } catch (embedError) {
+            log.error(`Error sending embeddable message to ${chatId}:`, embedError);
+            // If embeddable fails, try as photo to get thumbnail
+            await tgBotInstance.telegram.sendPhoto(chatId, url, {
+              parse_mode: "HTML",
+              caption: caption,
+              has_spoiler: hasSpoiler, // This will be false
+              reply_markup: replyMarkup,
+            });
+          }
         }
         break;
         
