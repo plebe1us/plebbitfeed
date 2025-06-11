@@ -10,45 +10,64 @@ const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
 // Media type detection helpers
-function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'animation' | 'embeddable' | null {
+function getMediaTypeFromUrl(
+  url: string,
+): "image" | "video" | "audio" | "animation" | "embeddable" | null {
   try {
     const parsedUrl = new URL(url);
-    
+
     // Check for embeddable platforms first
     if (isEmbeddablePlatform(parsedUrl)) {
-      return 'embeddable';
+      return "embeddable";
     }
-    
+
     // Extract extension from pathname
     const pathname = parsedUrl.pathname.toLowerCase();
     const extensionMatch = pathname.match(/\.([^.]+)$/);
-    
+
     if (extensionMatch) {
       const extension = extensionMatch[1];
-      
+
       // Define file type mappings for supported Telegram media types only
-      const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff'];
-      const videoExtensions = ['mp4', 'webm', 'avi', 'mov', 'mkv', 'm4v', '3gp', 'gifv']; // gifv is actually video
-      const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'opus'];
-      const animationExtensions = ['gif']; // Only true GIF animations
-      
+      const imageExtensions = ["jpg", "jpeg", "png", "webp", "bmp", "tiff"];
+      const videoExtensions = [
+        "mp4",
+        "webm",
+        "avi",
+        "mov",
+        "mkv",
+        "m4v",
+        "3gp",
+        "gifv",
+      ]; // gifv is actually video
+      const audioExtensions = [
+        "mp3",
+        "wav",
+        "ogg",
+        "flac",
+        "m4a",
+        "aac",
+        "opus",
+      ];
+      const animationExtensions = ["gif"]; // Only true GIF animations
+
       if (imageExtensions.includes(extension)) {
-        return 'image';
+        return "image";
       } else if (videoExtensions.includes(extension)) {
-        return 'video';
+        return "video";
       } else if (audioExtensions.includes(extension)) {
-        return 'audio';
+        return "audio";
       } else if (animationExtensions.includes(extension)) {
-        return 'animation';
+        return "animation";
       } else {
         // Return null for unsupported extensions to trigger fallback to text message
         return null;
       }
     }
-    
+
     return null;
   } catch (error) {
-    log.error('Error parsing URL:', error);
+    log.error("Error parsing URL:", error);
     return null;
   }
 }
@@ -56,36 +75,38 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | 'animat
 function isEmbeddablePlatform(parsedUrl: URL): boolean {
   const embeddableDomains = [
     // YouTube
-    'youtube.com', 'youtu.be',
+    "youtube.com",
+    "youtu.be",
     // Twitter/X
-    'twitter.com', 'x.com',
+    "twitter.com",
+    "x.com",
     // TikTok
-    'tiktok.com',
+    "tiktok.com",
     // Instagram
-    'instagram.com',
+    "instagram.com",
     // Twitch
-    'twitch.tv',
+    "twitch.tv",
     // Reddit
-    'reddit.com',
+    "reddit.com",
     // Others
-    'odysee.com',
-    'bitchute.com',
-    'streamable.com',
-    'spotify.com',
-    'soundcloud.com',
+    "odysee.com",
+    "bitchute.com",
+    "streamable.com",
+    "spotify.com",
+    "soundcloud.com",
   ];
-  
+
   const hostname = parsedUrl.hostname;
-  
+
   // Check for exact match or subdomain match (hostname ends with .domain.com)
   for (const domain of embeddableDomains) {
     if (hostname === domain || hostname.endsWith(`.${domain}`)) {
       return true;
     }
   }
-  
+
   // Special case for YouTube Invidious instances
-  return hostname.startsWith('yt.') && parsedUrl.searchParams.has('v');
+  return hostname.startsWith("yt.") && parsedUrl.searchParams.has("v");
 }
 
 async function sendMediaToChatWithParsedType(
@@ -95,11 +116,11 @@ async function sendMediaToChatWithParsedType(
   caption: string,
   replyMarkup: any,
   hasSpoiler: boolean = false,
-  mediaType: 'image' | 'video' | 'audio' | 'animation' | 'embeddable' | null
+  mediaType: "image" | "video" | "audio" | "animation" | "embeddable" | null,
 ): Promise<void> {
   try {
     switch (mediaType) {
-      case 'image':
+      case "image":
         await tgBotInstance.telegram.sendPhoto(chatId, url, {
           parse_mode: "HTML",
           caption: caption,
@@ -107,8 +128,8 @@ async function sendMediaToChatWithParsedType(
           reply_markup: replyMarkup,
         });
         break;
-        
-      case 'video':
+
+      case "video":
         await tgBotInstance.telegram.sendVideo(chatId, url, {
           parse_mode: "HTML",
           caption: caption,
@@ -116,16 +137,16 @@ async function sendMediaToChatWithParsedType(
           reply_markup: replyMarkup,
         });
         break;
-        
-      case 'audio':
+
+      case "audio":
         await tgBotInstance.telegram.sendAudio(chatId, url, {
           parse_mode: "HTML",
           caption: caption,
           reply_markup: replyMarkup,
         });
         break;
-        
-      case 'animation':
+
+      case "animation":
         await tgBotInstance.telegram.sendAnimation(chatId, url, {
           parse_mode: "HTML",
           caption: caption,
@@ -133,8 +154,8 @@ async function sendMediaToChatWithParsedType(
           reply_markup: replyMarkup,
         });
         break;
-        
-      case 'embeddable':
+
+      case "embeddable":
         if (hasSpoiler) {
           try {
             // Attempt to send as a spoilered video, which works for YouTube, etc.
@@ -145,22 +166,35 @@ async function sendMediaToChatWithParsedType(
               reply_markup: replyMarkup,
             });
           } catch (videoError) {
-            log.info(`Could not send spoilered embeddable as video to ${chatId}, falling back to spoilered link.`);
+            log.info(
+              `Could not send spoilered embeddable as video to ${chatId}, falling back to spoilered link.`,
+            );
             // If sending as a video fails, send a spoilered link (no preview)
-            await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 <tg-spoiler>${url}</tg-spoiler>`, {
-              parse_mode: "HTML",
-              reply_markup: replyMarkup,
-            });
+            await tgBotInstance.telegram.sendMessage(
+              chatId,
+              `${caption}\n\n🔗 <tg-spoiler>${url}</tg-spoiler>`,
+              {
+                parse_mode: "HTML",
+                reply_markup: replyMarkup,
+              },
+            );
           }
         } else {
           // For embeddable content, send the URL as a message to get Telegram's link preview
           try {
-            await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
-              parse_mode: "HTML",
-              reply_markup: replyMarkup,
-            });
+            await tgBotInstance.telegram.sendMessage(
+              chatId,
+              `${caption}\n\n🔗 ${url}`,
+              {
+                parse_mode: "HTML",
+                reply_markup: replyMarkup,
+              },
+            );
           } catch (embedError) {
-            log.error(`Error sending embeddable message to ${chatId}:`, embedError);
+            log.error(
+              `Error sending embeddable message to ${chatId}:`,
+              embedError,
+            );
             // If embeddable fails, try as photo to get thumbnail
             await tgBotInstance.telegram.sendPhoto(chatId, url, {
               parse_mode: "HTML",
@@ -171,22 +205,30 @@ async function sendMediaToChatWithParsedType(
           }
         }
         break;
-        
+
       default:
         // For null/unsupported media types, send as message with link
-        await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
-          parse_mode: "HTML",
-          reply_markup: replyMarkup,
-        });
+        await tgBotInstance.telegram.sendMessage(
+          chatId,
+          `${caption}\n\n🔗 ${url}`,
+          {
+            parse_mode: "HTML",
+            reply_markup: replyMarkup,
+          },
+        );
         break;
     }
   } catch (error) {
     log.error(`Error sending ${mediaType} to ${chatId}:`, error);
     // Fallback to text message
-    await tgBotInstance.telegram.sendMessage(chatId, `${caption}\n\n🔗 ${url}`, {
-      parse_mode: "HTML",
-      reply_markup: replyMarkup,
-    });
+    await tgBotInstance.telegram.sendMessage(
+      chatId,
+      `${caption}\n\n🔗 ${url}`,
+      {
+        parse_mode: "HTML",
+        reply_markup: replyMarkup,
+      },
+    );
   }
 }
 
@@ -219,13 +261,13 @@ async function scrollPosts(
         };
         // Convert plebbit spoiler tags to Telegram spoiler format before HTML escaping
         postData.title = postData.title
-          .replace(/<spoiler>(.*?)<\/?spoiler>/g, '||$1||')
+          .replace(/<spoiler>(.*?)<\/?spoiler>/g, "||$1||")
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
 
         postData.content = postData.content
-          .replace(/<spoiler>(.*?)<\/?spoiler>/g, '||$1||')
+          .replace(/<spoiler>(.*?)<\/?spoiler>/g, "||$1||")
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
@@ -288,7 +330,7 @@ async function scrollPosts(
             const mediaType = getMediaTypeFromUrl(linkUrl);
 
             // Send to all configured chats
-            const sendPromises = chatIds.map(chatId => 
+            const sendPromises = chatIds.map((chatId) =>
               sendMediaToChatWithParsedType(
                 tgBotInstance,
                 chatId,
@@ -296,20 +338,21 @@ async function scrollPosts(
                 captionMessage,
                 replyMarkup,
                 newPost.spoiler || newPost.nsfw,
-                mediaType
+                mediaType,
               ).catch((error: any) => {
                 log.error(`Error sending media to ${chatId}:`, error);
                 return false; // Return false to indicate failure
-              })
+              }),
             );
 
             const results = await Promise.allSettled(sendPromises);
-            
+
             // Only mark as processed if at least one message was sent successfully
-            const hasSuccessfulSend = results.some(result => 
-              result.status === 'fulfilled' && result.value !== false
+            const hasSuccessfulSend = results.some(
+              (result) =>
+                result.status === "fulfilled" && result.value !== false,
             );
-            
+
             if (currentPostCid && hasSuccessfulSend) {
               processedCids.add(currentPostCid);
             }
@@ -319,7 +362,7 @@ async function scrollPosts(
         } else {
           await queue.add(async () => {
             // Send to all configured chats
-            const sendPromises = chatIds.map(chatId =>
+            const sendPromises = chatIds.map((chatId) =>
               tgBotInstance.telegram
                 .sendMessage(chatId, captionMessage, {
                   parse_mode: "HTML",
@@ -341,24 +384,27 @@ async function scrollPosts(
                 .catch((error: any) => {
                   log.error(`Error sending message to ${chatId}:`, error);
                   return false; // Return false to indicate failure
-                })
+                }),
             );
 
             const results = await Promise.allSettled(sendPromises);
-            
+
             // Only mark as processed if at least one message was sent successfully
-            const hasSuccessfulSend = results.some(result => 
-              result.status === 'fulfilled' && result.value !== false
+            const hasSuccessfulSend = results.some(
+              (result) =>
+                result.status === "fulfilled" && result.value !== false,
             );
-            
+
             if (currentPostCid && hasSuccessfulSend) {
               processedCids.add(currentPostCid);
             }
-            
+
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         }
-        log.info(`New post: ${postData.title || 'No title'} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)}`);
+        log.info(
+          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)}`,
+        );
         currentPostCid = newPost.previousCid;
       } else {
         //log.info("Already processsed: ", currentPostCid);
@@ -367,7 +413,12 @@ async function scrollPosts(
       }
     }
   } catch (e) {
-    log.error('Error in scrollPosts for address:', address, 'Error message:', e instanceof Error ? e.message : String(e));
+    log.error(
+      "Error in scrollPosts for address:",
+      address,
+      "Error message:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
   log.info("Finished on ", address);
 }
@@ -375,17 +426,17 @@ async function scrollPosts(
 // Helper function to get list of chat IDs
 function getChatIds(): string[] {
   const chatIds: string[] = [];
-  
+
   // Add primary channel/chat
   if (process.env.FEED_BOT_CHAT) {
     chatIds.push(process.env.FEED_BOT_CHAT);
   }
-  
+
   // Add secondary group
   if (process.env.FEED_BOT_GROUP) {
     chatIds.push(process.env.FEED_BOT_GROUP);
   }
-  
+
   return chatIds;
 }
 
@@ -395,7 +446,10 @@ function loadOldPosts() {
     const parsedData = JSON.parse(data);
     processedCids = new Set(parsedData.Cids); // Ensure uniqueness
   } catch (error) {
-    log.warn('Could not load old posts, starting with empty history:', error instanceof Error ? error.message : String(error));
+    log.warn(
+      "Could not load old posts, starting with empty history:",
+      error instanceof Error ? error.message : String(error),
+    );
     processedCids = new Set(); // Initialize with empty set
   }
 }
@@ -419,9 +473,11 @@ export async function startPlebbitFeedBot(
   log.info("Starting plebbit feed bot");
 
   if (!process.env.FEED_BOT_CHAT && !process.env.FEED_BOT_GROUP) {
-    throw new Error("At least one of FEED_BOT_CHAT or FEED_BOT_GROUP must be set");
+    throw new Error(
+      "At least one of FEED_BOT_CHAT or FEED_BOT_GROUP must be set",
+    );
   }
-  
+
   if (!process.env.BOT_TOKEN) {
     throw new Error("BOT_TOKEN not set");
   }
@@ -472,7 +528,10 @@ export async function startPlebbitFeedBot(
             ]);
           }
         } catch (e) {
-          log.error(`Error processing subplebbit ${subAddress}:`, e instanceof Error ? e.message : String(e));
+          log.error(
+            `Error processing subplebbit ${subAddress}:`,
+            e instanceof Error ? e.message : String(e),
+          );
         }
       }),
     );
@@ -501,7 +560,10 @@ export async function fetchSubs() {
         .map((obj: any) => obj.address);
     }
   } catch (error) {
-    log.error("Error fetching subs:", error instanceof Error ? error.message : String(error));
+    log.error(
+      "Error fetching subs:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
   return subs;
 }
