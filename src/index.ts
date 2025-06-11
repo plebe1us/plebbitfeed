@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { startPlebbitFeedBot } from "./plebbitfeed-chat-bot.js";
+import { startPlebbitFeedBot } from "./plebbitfeed.js";
 import { Scenes, Telegraf } from "telegraf";
 import { Logger } from "tslog";
 import Plebbit from "@plebbit/plebbit-js";
