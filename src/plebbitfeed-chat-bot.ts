@@ -217,12 +217,15 @@ async function scrollPosts(
           removed: newPost.removed ? newPost.removed : false,
           deleted: newPost.deleted ? newPost.deleted : false,
         };
+        // Convert plebbit spoiler tags to Telegram spoiler format before HTML escaping
         postData.title = postData.title
+          .replace(/<spoiler>(.*?)<\/?spoiler>/g, '||$1||')
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
 
         postData.content = postData.content
+          .replace(/<spoiler>(.*?)<\/?spoiler>/g, '||$1||')
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
