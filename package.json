@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "description": "A bot to forward plebbit posts on telegram",
     "author": "plebeius.eth",
+    "license": "GPL-2.0-only",
     "main": "index.js",
     "type": "module",
     "scripts": {
@@ -12,7 +13,6 @@
         "dev": "npx tsx --watch src/index.ts",
         "prettier": "prettier {src,electron}/**/*.{js,ts,tsx} --write"
     },
-    "license": "GPL-2.0-only",
     "dependencies": {
         "@plebbit/plebbit-js": "https://github.com/plebbit/plebbit-js.git#692ec349f01aa6d8e939ff1d6d07315ab92e4099",
         "dotenv": "16.4.5",
