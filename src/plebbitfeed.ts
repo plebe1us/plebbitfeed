@@ -282,8 +282,9 @@ async function scrollPosts(
         }
 
         // Check if the post is removed or deleted
-        if (postData.removed || postData.deleted) {
-          log.info("Post is removed or deleted, skipping.");
+        // Only proceed if both removed and deleted are explicitly false
+        if (newPost.removed !== false || newPost.deleted !== false) {
+          log.info("Post is removed, deleted, or status unknown, skipping.");
           currentPostCid = newPost.previousCid;
           continue;
         }
