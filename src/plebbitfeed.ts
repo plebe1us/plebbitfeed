@@ -289,20 +289,33 @@ async function scrollPosts(
         const comment = await plebbit.createComment({ cid: newPost.cid });
         await comment.update();
 
-        // Wait for CommentUpdate to load
-        await new Promise<void>((resolve) => {
-          const updateListener = () => {
-            if (typeof comment.updatedAt === 'number') {
-              comment.removeListener('update', updateListener);
+        // Wait for CommentUpdate to load with timeout
+        let commentUpdateLoaded = false;
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            const updateListener = () => {
+              if (typeof comment.updatedAt === 'number') {
+                comment.removeListener('update', updateListener);
+                commentUpdateLoaded = true;
+                resolve();
+              }
+            };
+            comment.on('update', updateListener);
+          }),
+          new Promise<void>((resolve) => {
+            setTimeout(() => {
+              log.warn(`CommentUpdate loading timed out for ${newPost.cid}, proceeding anyway`);
               resolve();
-            }
-          };
-          comment.on('update', updateListener);
-        });
+            }, 30000); // 30 second timeout
+          })
+        ]);
+
+        // Store the removed status before stopping the comment
+        const isRemoved = comment.removed === true;
+        const removedStatus = comment.removed; // Store for logging
 
         // Now check removed status
-        // undefined or false means not removed
-        if (comment.removed === true) {
+        if (isRemoved) {
           log.info(`Post ${newPost.cid} is removed, skipping.`);
           await comment.stop();
           continue;
@@ -331,7 +344,7 @@ async function scrollPosts(
           cid: newPost.cid,
           subplebbitAddress: newPost.subplebbitAddress,
           timestamp: newPost.timestamp,
-          removed: comment.removed ? comment.removed : false,
+          removed: isRemoved,
           deleted: newPost.deleted ? newPost.deleted : false,
         };
 
@@ -463,7 +476,7 @@ async function scrollPosts(
           });
         }
         log.info(
-          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${comment.removed}`,
+          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${removedStatus}`,
         );
       }
     }
