@@ -284,6 +284,31 @@ async function scrollPosts(
     // Process each post
     for (const newPost of posts.slice(0, 20)) { // Limit to 20 most recent posts
       if (newPost.cid && !processedCids.has(newPost.cid)) {
+
+        // Fetch full CommentUpdate for accurate removed status
+        const comment = await plebbit.createComment({ cid: newPost.cid });
+        await comment.update();
+
+        // Wait for CommentUpdate to load
+        await new Promise<void>((resolve) => {
+          const updateListener = () => {
+            if (typeof comment.updatedAt === 'number') {
+              comment.removeListener('update', updateListener);
+              resolve();
+            }
+          };
+          comment.on('update', updateListener);
+        });
+
+        // Now check removed status
+        // undefined or false means not removed
+        if (comment.removed === true) {
+          log.info(`Post ${newPost.cid} is removed, skipping.`);
+          await comment.stop();
+          continue;
+        }
+        await comment.stop();
+
         // Check if the post is older than 2 days (for failed retries) or 24 hours (for new posts)
         const currentTime = Math.floor(Date.now() / 1000);
         const maxAge = 2 * 24 * 60 * 60; // 2 days in seconds
@@ -292,9 +317,9 @@ async function scrollPosts(
           continue;
         }
 
-        // Check if the post is removed or deleted
-        if (newPost.removed || newPost.deleted) {
-          log.info("Post is removed or deleted, skipping.");
+        // Check if the post is deleted
+        if (newPost.deleted) {
+          log.info("Post is deleted, skipping.");
           continue;
         }
 
@@ -306,19 +331,19 @@ async function scrollPosts(
           cid: newPost.cid,
           subplebbitAddress: newPost.subplebbitAddress,
           timestamp: newPost.timestamp,
-          removed: newPost.removed ? newPost.removed : false,
+          removed: comment.removed ? comment.removed : false,
           deleted: newPost.deleted ? newPost.deleted : false,
         };
 
         // Convert plebbit spoiler tags to Telegram spoiler format before HTML escaping
         postData.title = postData.title
-          .replace(/<spoiler>(.*?)<\/?spoiler>/g, "||$1||")
+          .replace(/<spoiler>(.*?)<\/spoiler>/g, "||$1||")
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
 
         postData.content = postData.content
-          .replace(/<spoiler>(.*?)<\/?spoiler>/g, "||$1||")
+          .replace(/<spoiler>(.*?)<\/spoiler>/g, "||$1||")
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
@@ -438,7 +463,7 @@ async function scrollPosts(
           });
         }
         log.info(
-          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${newPost.removed}`,
+          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${comment.removed}`,
         );
       }
     }
