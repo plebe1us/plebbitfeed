@@ -241,13 +241,63 @@ async function scrollPosts(
   log.info("Checking sub: ", address);
   try {
     log.info("Sub loaded");
-    let currentPostCid = subInstance.lastPostCid;
-    let counter = 0;
-    while (currentPostCid && counter < 20) {
-      counter += 1;
-      log.info(`Processing CID: ${currentPostCid}`);
-      if (currentPostCid && !processedCids.has(currentPostCid)) {
-        const newPost = await plebbit.getComment(currentPostCid);
+    
+    // Use subplebbit pages instead of manual linked list traversal
+    // This gives us posts with full CommentUpdate data including moderation status
+    let posts: any[] = [];
+    
+    try {
+      // Try to get the 'new' page which has the most recent posts
+      if (subInstance.posts?.pageCids?.new) {
+        const newPage = await subInstance.posts.getPage(subInstance.posts.pageCids.new);
+        posts = newPage.comments || [];
+        log.info(`Loaded ${posts.length} posts from 'new' page`);
+      } else if (subInstance.posts?.pages?.hot?.comments) {
+        // Fallback to preloaded hot page if available
+        posts = subInstance.posts.pages.hot.comments;
+        log.info(`Using ${posts.length} preloaded posts from 'hot' page`);
+      } else {
+        log.warn("No posts pages available, falling back to manual traversal");
+        // Fallback to original method if pages aren't available
+        let currentPostCid = subInstance.lastPostCid;
+        let counter = 0;
+        while (currentPostCid && counter < 20) {
+          counter += 1;
+          const post = await plebbit.getComment(currentPostCid);
+          posts.push(post);
+          currentPostCid = post.previousCid;
+        }
+      }
+    } catch (pageError) {
+      log.warn("Error loading posts page, falling back to manual traversal:", pageError);
+      // Fallback to original method
+      let currentPostCid = subInstance.lastPostCid;
+      let counter = 0;
+      while (currentPostCid && counter < 20) {
+        counter += 1;
+        const post = await plebbit.getComment(currentPostCid);
+        posts.push(post);
+        currentPostCid = post.previousCid;
+      }
+    }
+
+    // Process each post
+    for (const newPost of posts.slice(0, 20)) { // Limit to 20 most recent posts
+      if (newPost.cid && !processedCids.has(newPost.cid)) {
+        // Check if the post is older than 2 days (for failed retries) or 24 hours (for new posts)
+        const currentTime = Math.floor(Date.now() / 1000);
+        const maxAge = 2 * 24 * 60 * 60; // 2 days in seconds
+        if (currentTime - newPost.timestamp > maxAge) {
+          log.info("Post is older than 2 days, skipping retry.");
+          continue;
+        }
+
+        // Check if the post is removed or deleted
+        if (newPost.removed || newPost.deleted) {
+          log.info("Post is removed or deleted, skipping.");
+          continue;
+        }
+
         const postData = {
           title: newPost.title ? newPost.title : "",
           content: newPost.content ? newPost.content : "",
@@ -259,6 +309,7 @@ async function scrollPosts(
           removed: newPost.removed ? newPost.removed : false,
           deleted: newPost.deleted ? newPost.deleted : false,
         };
+
         // Convert plebbit spoiler tags to Telegram spoiler format before HTML escaping
         postData.title = postData.title
           .replace(/<spoiler>(.*?)<\/?spoiler>/g, "||$1||")
@@ -271,23 +322,6 @@ async function scrollPosts(
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
-
-        // Check if the post is older than 2 days (for failed retries) or 24 hours (for new posts)
-        const currentTime = Math.floor(Date.now() / 1000);
-        const maxAge = 2 * 24 * 60 * 60; // 2 days in seconds
-        if (currentTime - postData.timestamp > maxAge) {
-          log.info("Post is older than 2 days, skipping retry.");
-          currentPostCid = newPost.previousCid;
-          continue;
-        }
-
-        // Check if the post is removed or deleted
-        // Only proceed if both removed and deleted are explicitly false
-        if (newPost.removed !== false || newPost.deleted !== false) {
-          log.info("Post is removed, deleted, or status unknown, skipping.");
-          currentPostCid = newPost.previousCid;
-          continue;
-        }
 
         if (postData.title.length + postData.content.length > 900) {
           if (postData.title.length > 900) {
@@ -354,8 +388,8 @@ async function scrollPosts(
                 result.status === "fulfilled" && result.value !== false,
             );
 
-            if (currentPostCid && hasSuccessfulSend) {
-              processedCids.add(currentPostCid);
+            if (newPost.cid && hasSuccessfulSend) {
+              processedCids.add(newPost.cid);
             }
 
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
@@ -396,21 +430,16 @@ async function scrollPosts(
                 result.status === "fulfilled" && result.value !== false,
             );
 
-            if (currentPostCid && hasSuccessfulSend) {
-              processedCids.add(currentPostCid);
+            if (newPost.cid && hasSuccessfulSend) {
+              processedCids.add(newPost.cid);
             }
 
             await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
           });
         }
         log.info(
-          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)}`,
+          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${newPost.removed}`,
         );
-        currentPostCid = newPost.previousCid;
-      } else {
-        //log.info("Already processsed: ", currentPostCid);
-        const post = await plebbit.getComment(currentPostCid);
-        currentPostCid = post.previousCid;
       }
     }
   } catch (e) {
