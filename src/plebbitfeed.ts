@@ -76,18 +76,24 @@ function isEmbeddablePlatform(parsedUrl: URL): boolean {
   const embeddableDomains = [
     // YouTube
     "youtube.com",
+    "m.youtube.com",
     "youtu.be",
     // Twitter/X
     "twitter.com",
     "x.com",
+    "mobile.twitter.com",
     // TikTok
     "tiktok.com",
+    "m.tiktok.com",
     // Instagram
     "instagram.com",
+    "m.instagram.com",
     // Twitch
     "twitch.tv",
+    "m.twitch.tv",
     // Reddit
     "reddit.com",
+    "m.reddit.com",
     // Others
     "odysee.com",
     "bitchute.com",
@@ -98,9 +104,13 @@ function isEmbeddablePlatform(parsedUrl: URL): boolean {
 
   const hostname = parsedUrl.hostname;
 
-  // Check for exact match or subdomain match (hostname ends with .domain.com)
+  // Check for exact match or proper subdomain match
   for (const domain of embeddableDomains) {
-    if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+    if (hostname === domain) {
+      return true;
+    }
+    // More precise subdomain check: ensure it's a proper subdomain
+    if (hostname.endsWith(`.${domain}`) && hostname.split('.').length > domain.split('.').length) {
       return true;
     }
   }
