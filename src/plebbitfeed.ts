@@ -9,6 +9,13 @@ const queue = new PQueue({ concurrency: 1 });
 const historyCidsFile = "history.json";
 let processedCids: Set<string> = new Set();
 
+// Global shutdown flag
+let isShuttingDown = false;
+
+export function setShuttingDown(value: boolean) {
+  isShuttingDown = value;
+}
+
 // Media type detection helpers
 function getMediaTypeFromUrl(
   url: string,
@@ -560,13 +567,18 @@ export async function startPlebbitFeedBot(
     throw new Error("BOT_TOKEN not set");
   }
 
-  while (true) {
+  while (!isShuttingDown) {
     loadOldPosts();
     console.log("Length of loaded posts: ", processedCids.size);
     const subs = await fetchSubs();
+    
+    if (isShuttingDown) break;
+    
     await Promise.all(
       subs.map(async (subAddress: string) => {
         try {
+          if (isShuttingDown) return;
+          
           log.info("Loading sub ", subAddress);
           const startTime = performance.now();
           const subInstance: any = await Promise.race([
@@ -582,6 +594,9 @@ export async function startPlebbitFeedBot(
           ]);
           const endTime = performance.now();
           log.info("Time to load sub: ", endTime - startTime);
+          
+          if (isShuttingDown) return;
+          
           if (subInstance.address) {
             await Promise.race([
               scrollPosts(
@@ -613,9 +628,14 @@ export async function startPlebbitFeedBot(
         }
       }),
     );
+    
+    if (isShuttingDown) break;
+    
     log.info("saving new posts");
     savePosts();
   }
+  
+  log.info("Bot feed processing stopped due to shutdown signal");
 }
 
 export async function fetchSubs() {

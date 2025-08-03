@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { startPlebbitFeedBot } from "./plebbitfeed.js";
+import { startPlebbitFeedBot, setShuttingDown } from "./plebbitfeed.js";
 import { Scenes, Telegraf } from "telegraf";
 import { Logger } from "tslog";
 import Plebbit from "@plebbit/plebbit-js";
@@ -102,22 +102,89 @@ plebbit.on("error", (error: any) => {
   );
 });
 
+// Graceful shutdown handling
+let isShuttingDown = false;
+
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) {
+    log.warn("Force shutting down...");
+    process.exit(1);
+  }
+  
+  isShuttingDown = true;
+  log.info(`\nReceived ${signal}. Shutting down bot gracefully...`);
+  
+  try {
+    // Set shutdown flag for plebbitfeed
+    setShuttingDown(true);
+    
+    // Stop the Telegram bot
+    if (plebbitFeedTgBot) {
+      log.info("Stopping Telegram bot...");
+      await plebbitFeedTgBot.stop();
+    }
+    
+    // Stop Plebbit instance
+    if (plebbit) {
+      log.info("Stopping Plebbit instance...");
+      await plebbit.destroy();
+    }
+    
+    log.info("Bot shutdown complete");
+    process.exit(0);
+  } catch (error) {
+    log.error("Error during shutdown:", error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+};
+
+// Handle various shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGQUIT', () => gracefulShutdown('SIGQUIT'));
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  log.error('Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason) => {
+  log.error('Unhandled Rejection:', reason);
+  gracefulShutdown('unhandledRejection');
+});
+
 const start = async () => {
   try {
-    plebbitFeedTgBot.launch();
+    if (isShuttingDown) return;
+    
+    await plebbitFeedTgBot.launch();
+    log.info("Telegram bot launched successfully");
+    
     // Started message
-    if (plebbitFeedTgBot)
-      plebbitFeedTgBot.telegram
-        .getMe()
-        .then((res) =>
-          console.log(`Bot started on https://t.me/${res.username}`),
-        );
-    await Promise.all([startPlebbitFeedBot(plebbitFeedTgBot)]);
+    try {
+      const botInfo = await plebbitFeedTgBot.telegram.getMe();
+      log.info(`Bot started: https://t.me/${botInfo.username}`);
+    } catch (error) {
+      log.warn("Could not get bot info:", error instanceof Error ? error.message : String(error));
+    }
+    
+    // Start the plebbit feed bot
+    await startPlebbitFeedBot(plebbitFeedTgBot);
+    
   } catch (error) {
     log.error(
       "Bot startup error:",
       error instanceof Error ? error.message : String(error),
     );
+    
+    if (!isShuttingDown) {
+      await gracefulShutdown('startup-error');
+    }
   }
 };
-start();
+
+start().catch((error) => {
+  log.error("Unhandled start error:", error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
