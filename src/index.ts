@@ -78,29 +78,8 @@ console.warn = (...args: any[]) => {
   originalConsoleWarn.apply(console, args);
 };
 
-export const plebbit = await Plebbit({
-  kuboRpcClientsOptions: [`http://localhost:50019/api/v0`],
-  chainProviders: {
-    eth: {
-      urls: ["ethers.js", "https://ethrpc.xyz", "viem"],
-      chainId: 1,
-    },
-    avax: {
-      urls: ["https://api.avax.network/ext/bc/C/rpc"],
-      chainId: 43114,
-    },
-    matic: {
-      urls: ["https://polygon-rpc.com"],
-      chainId: 137,
-    },
-  },
-});
-plebbit.on("error", (error: any) => {
-  log.error(
-    "Plebbit error:",
-    error.message || error.code || "Unknown plebbit error",
-  );
-});
+// Plebbit instance will be initialized in start() function with timeout
+export let plebbit: any;
 
 // Graceful shutdown handling
 let isShuttingDown = false;
@@ -168,6 +147,49 @@ const start = async () => {
     } catch (error) {
       log.warn("Could not get bot info:", error instanceof Error ? error.message : String(error));
     }
+    
+    // Initialize Plebbit with timeout
+    log.info("Initializing Plebbit...");
+    try {
+      plebbit = await Promise.race([
+        Plebbit({
+          kuboRpcClientsOptions: [`http://localhost:50019/api/v0`],
+          chainProviders: {
+            eth: {
+              urls: ["ethers.js", "https://ethrpc.xyz", "viem"],
+              chainId: 1,
+            },
+            avax: {
+              urls: ["https://api.avax.network/ext/bc/C/rpc"],
+              chainId: 43114,
+            },
+            matic: {
+              urls: ["https://polygon-rpc.com"],
+              chainId: 137,
+            },
+          },
+        }),
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("Plebbit initialization timed out after 2 minutes"));
+          }, 2 * 60 * 1000); // 2 minutes timeout
+        }),
+      ]);
+      
+      plebbit.on("error", (error: any) => {
+        log.error(
+          "Plebbit error:",
+          error.message || error.code || "Unknown plebbit error",
+        );
+      });
+      
+      log.info("Plebbit initialized successfully");
+    } catch (error) {
+      log.error("Failed to initialize Plebbit:", error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+    
+    if (isShuttingDown) return;
     
     // Start the plebbit feed bot
     await startPlebbitFeedBot(plebbitFeedTgBot);

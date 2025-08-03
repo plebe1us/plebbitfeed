@@ -252,7 +252,7 @@ async function sendMediaToChatWithParsedType(
 async function scrollPosts(
   address: string,
   tgBotInstance: Telegraf<Scenes.WizardContext>,
-  plebbit: typeof import("./index.js").plebbit,
+  plebbit: any,
   subInstance: any,
 ) {
   log.info("Checking sub: ", address);
