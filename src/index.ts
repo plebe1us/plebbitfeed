@@ -3,7 +3,6 @@ import { startPlebbitFeedBot, setShuttingDown } from "./plebbitfeed.js";
 import { Scenes, Telegraf } from "telegraf";
 import { Logger } from "tslog";
 import Plebbit from "@plebbit/plebbit-js";
-import { Agent } from "https";
 
 export const log = new Logger({
   minLevel: "info", // Only log info, warn, error - skip debug and trace
@@ -12,19 +11,21 @@ export const log = new Logger({
   prettyErrorTemplate:
     "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}} {{logLevelName}} [{{filePathWithLine}}] {{errorName}}: {{errorMessage}}\n{{errorStack}}",
 });
-dotenv.config();
 
+console.log("Loading dotenv config...");
+dotenv.config();
+console.log("Dotenv config loaded");
+
+console.log("Checking BOT_TOKEN...");
 if (!process.env.BOT_TOKEN) {
   throw new Error("BOT_TOKEN is not set");
 }
+console.log("BOT_TOKEN found, creating Telegraf instance...");
 export const plebbitFeedTgBot = new Telegraf<Scenes.WizardContext>(
-  process.env.BOT_TOKEN!,
-  {
-    telegram: {
-      agent: new Agent({ keepAlive: false }),
-    },
-  },
+  process.env.BOT_TOKEN!
+  // Removed agent configuration to test if that's causing the issue
 );
+console.log("Telegraf instance created");
 
 // Set environment variable to reduce debug logging before loading Plebbit
 process.env.DEBUG = "";
@@ -134,10 +135,20 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const start = async () => {
+  console.log("Starting bot...");
   try {
     if (isShuttingDown) return;
     
-    await plebbitFeedTgBot.launch();
+    console.log("Launching Telegram bot...");
+    
+    // Launch bot asynchronously without waiting for long polling to start
+    plebbitFeedTgBot.launch().catch((error) => {
+      log.error("Telegram bot launch error:", error);
+    });
+    
+    // Give it a moment to initialize, then test connection
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     log.info("Telegram bot launched successfully");
     
     // Started message
@@ -151,9 +162,16 @@ const start = async () => {
     // Initialize Plebbit with timeout
     log.info("Initializing Plebbit...");
     try {
+      // Use different IPFS port for local development vs production
+      const kuboUrl = process.env.NODE_ENV === 'production' 
+        ? 'http://localhost:50019/api/v0'
+        : 'http://localhost:5001/api/v0';
+      
+      console.log(`Connecting to IPFS at: ${kuboUrl}`);
+      
       plebbit = await Promise.race([
         Plebbit({
-          kuboRpcClientsOptions: [`http://localhost:50019/api/v0`],
+          kuboRpcClientsOptions: [kuboUrl],
           chainProviders: {
             eth: {
               urls: ["ethers.js", "https://ethrpc.xyz", "viem"],
@@ -206,6 +224,7 @@ const start = async () => {
   }
 };
 
+console.log("About to call start()...");
 start().catch((error) => {
   log.error("Unhandled start error:", error instanceof Error ? error.message : String(error));
   process.exit(1);
