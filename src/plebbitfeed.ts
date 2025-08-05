@@ -651,10 +651,19 @@ export async function startPlebbitFeedBot(
             // Update Map and log if within interval
             if (now - errorInfo.lastLogged > SUB_ERROR_LOG_INTERVAL) {
               errorInfo.lastLogged = now;
-              log.error(
-                `Error processing subplebbit ${subAddress}:`,
-                e instanceof Error ? e.message : String(e),
-              );
+              
+              // Check if this is an IPNS resolution failure (subplebbit likely offline)
+              const errorMessage = e instanceof Error ? e.message : String(e);
+              if (errorMessage.includes("Failed to resolve IPNS")) {
+                log.warn(
+                  `Subplebbit ${getShortAddress(subAddress)} appears to be offline (IPNS resolution failed)`
+                );
+              } else {
+                log.error(
+                  `Error processing subplebbit ${subAddress}:`,
+                  errorMessage,
+                );
+              }
             }
             subErrorCounts.set(errorKey, errorInfo);
           }

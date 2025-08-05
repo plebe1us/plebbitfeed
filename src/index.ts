@@ -242,7 +242,12 @@ const start = async () => {
         
         // Log if should log
         if (shouldLog) {
-          log.error("Plebbit error:", errorKey);
+          // Use appropriate log level based on error type
+          if (errorKey.includes("Failed to resolve IPNS")) {
+            log.warn("IPNS resolution failed (subplebbit may be offline)");
+          } else {
+            log.error("Plebbit error:", errorKey);
+          }
         }
       });
       
