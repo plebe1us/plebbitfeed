@@ -82,6 +82,9 @@ console.warn = (...args: any[]) => {
 // Plebbit instance will be initialized in start() function with timeout
 export let plebbit: any;
 
+// Interval IDs for cleanup
+let errorCleanupInterval: NodeJS.Timeout | undefined;
+
 // Graceful shutdown handling
 let isShuttingDown = false;
 
@@ -108,6 +111,11 @@ const gracefulShutdown = async (signal: string) => {
     if (plebbit) {
       log.info("Stopping Plebbit instance...");
       await plebbit.destroy();
+    }
+    
+    // Clear error cleanup interval if it exists
+    if (errorCleanupInterval) {
+      clearInterval(errorCleanupInterval);
     }
     
     log.info("Bot shutdown complete");
@@ -202,7 +210,7 @@ const start = async () => {
       const ERROR_RETENTION_TIME = 7200000; // Keep entries for 2 hours
       
       // Periodic cleanup to prevent unbounded Map growth
-      setInterval(() => {
+      errorCleanupInterval = setInterval(() => {
         const now = Date.now();
         for (const [key, value] of errorCounts.entries()) {
           if (now - value.lastLogged > ERROR_RETENTION_TIME) {
