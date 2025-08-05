@@ -255,9 +255,7 @@ async function scrollPosts(
   plebbit: any,
   subInstance: any,
 ) {
-  log.info("Checking sub: ", address);
   try {
-    log.info("Sub loaded");
     
     // Use subplebbit pages instead of manual linked list traversal
     // This gives us posts with full CommentUpdate data including moderation status
@@ -493,19 +491,16 @@ async function scrollPosts(
           });
         }
         log.info(
-          `New post: ${postData.title || "No title"} - CID: ${postData.cid} - Sub: ${getShortAddress(postData.subplebbitAddress)} - Removed: ${removedStatus}`,
+          `New post found: ${postData.title || "No title"} on p/${getShortAddress(postData.subplebbitAddress)}`,
         );
       }
     }
   } catch (e) {
     log.error(
-      "Error in scrollPosts for address:",
-      address,
-      "Error message:",
+      `Error in scrollPosts for ${getShortAddress(address)}:`,
       e instanceof Error ? e.message : String(e),
     );
   }
-  log.info("Finished on ", address);
 }
 
 // Helper function to get list of chat IDs
@@ -567,74 +562,134 @@ export async function startPlebbitFeedBot(
     throw new Error("BOT_TOKEN not set");
   }
 
+  // Error rate limiting for subplebbit errors
+  const subErrorCounts = new Map<string, { count: number; lastLogged: number }>();
+  const SUB_ERROR_LOG_INTERVAL = 300000; // Only log same subplebbit error once per 5 minutes
+  const SUB_ERROR_CLEANUP_INTERVAL = 3600000; // Cleanup every hour
+  const SUB_ERROR_RETENTION_TIME = 7200000; // Keep entries for 2 hours
+  
+  // Periodic cleanup to prevent unbounded Map growth
+  const cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of subErrorCounts.entries()) {
+      if (now - value.lastLogged > SUB_ERROR_RETENTION_TIME) {
+        subErrorCounts.delete(key);
+      }
+    }
+  }, SUB_ERROR_CLEANUP_INTERVAL);
+  
+  let cycleCount = 0;
+  
   while (!isShuttingDown) {
+    cycleCount++;
+    const cycleStartTime = Date.now();
+    
     loadOldPosts();
-    console.log("Length of loaded posts: ", processedCids.size);
+    log.info(`Starting cycle ${cycleCount} with ${processedCids.size} processed posts`);
+    
     const subs = await fetchSubs();
+    log.info(`Fetched ${subs.length} subplebbits to process`);
     
     if (isShuttingDown) break;
     
-    await Promise.all(
-      subs.map(async (subAddress: string) => {
-        try {
-          if (isShuttingDown) return;
-          
-          log.info("Loading sub ", subAddress);
-          const startTime = performance.now();
-          const subInstance: any = await Promise.race([
-            plebbit.getSubplebbit(subAddress),
-            new Promise((_, reject) => {
-              setTimeout(
-                () => {
-                  reject(new Error("Operation timed out after 5 minutes"));
-                },
-                5 * 60 * 1000,
-              );
-            }),
-          ]);
-          const endTime = performance.now();
-          log.info("Time to load sub: ", endTime - startTime);
-          
-          if (isShuttingDown) return;
-          
-          if (subInstance.address) {
-            await Promise.race([
-              scrollPosts(
-                subInstance.address,
-                tgBotInstance,
-                plebbit,
-                subInstance,
-              ),
+    // Process subplebbits in smaller batches to reduce load
+    const batchSize = 5; // Process 5 subs at a time instead of all at once
+    for (let i = 0; i < subs.length; i += batchSize) {
+      if (isShuttingDown) break;
+      
+      const batch = subs.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (subAddress: string) => {
+          try {
+            if (isShuttingDown) return;
+            
+            const subInstance: any = await Promise.race([
+              plebbit.getSubplebbit(subAddress),
               new Promise((_, reject) => {
                 setTimeout(
                   () => {
-                    reject(
-                      new Error(
-                        "Timedout after 6 minutes of post crawling on " +
-                          subInstance.address,
-                      ),
-                    );
+                    reject(new Error("Operation timed out after 5 minutes"));
                   },
-                  6 * 60 * 1000,
+                  5 * 60 * 1000,
                 );
               }),
             ]);
+            
+            if (isShuttingDown) return;
+            
+            if (subInstance.address) {
+              await Promise.race([
+                scrollPosts(
+                  subInstance.address,
+                  tgBotInstance,
+                  plebbit,
+                  subInstance,
+                ),
+                new Promise((_, reject) => {
+                  setTimeout(
+                    () => {
+                      reject(
+                        new Error(
+                          "Timedout after 6 minutes of post crawling on " +
+                            subInstance.address,
+                        ),
+                      );
+                    },
+                    6 * 60 * 1000,
+                  );
+                }),
+              ]);
+            }
+          } catch (e) {
+            // Rate limit subplebbit errors
+            const errorKey = `${subAddress}:${e instanceof Error ? e.message : String(e)}`;
+            const now = Date.now();
+            const errorInfo = subErrorCounts.get(errorKey) || { count: 0, lastLogged: 0 };
+            
+            errorInfo.count++;
+            
+            // Update Map and log if within interval
+            if (now - errorInfo.lastLogged > SUB_ERROR_LOG_INTERVAL) {
+              errorInfo.lastLogged = now;
+              log.error(
+                `Error processing subplebbit ${subAddress}:`,
+                e instanceof Error ? e.message : String(e),
+              );
+            }
+            subErrorCounts.set(errorKey, errorInfo);
           }
-        } catch (e) {
-          log.error(
-            `Error processing subplebbit ${subAddress}:`,
-            e instanceof Error ? e.message : String(e),
-          );
-        }
-      }),
-    );
+        }),
+      );
+      
+      // Small delay between batches to prevent overwhelming the system
+      if (i + batchSize < subs.length && !isShuttingDown) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay between batches
+      }
+    }
     
     if (isShuttingDown) break;
     
-    log.info("saving new posts");
     savePosts();
+    
+    const cycleEndTime = Date.now();
+    const cycleDuration = cycleEndTime - cycleStartTime;
+    log.info(`Cycle ${cycleCount} completed in ${Math.round(cycleDuration / 1000)}s`);
+    
+    // Wait 10 minutes between full cycles to prevent excessive polling
+    log.info("Waiting 10 minutes before next cycle...");
+    const CYCLE_DELAY = 10 * 60 * 1000; // 10 minutes
+    
+    // Break the delay into smaller chunks to allow for graceful shutdown
+    const delayChunks = 60; // 60 chunks of 10 seconds each
+    const chunkDelay = CYCLE_DELAY / delayChunks;
+    
+    for (let i = 0; i < delayChunks && !isShuttingDown; i++) {
+      await new Promise(resolve => setTimeout(resolve, chunkDelay));
+    }
   }
   
+  // Clear cleanup interval on shutdown
+  clearInterval(cleanupInterval);
   log.info("Bot feed processing stopped due to shutdown signal");
 }
 

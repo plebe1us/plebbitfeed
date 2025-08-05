@@ -194,11 +194,48 @@ const start = async () => {
         }),
       ]);
       
+      // Error rate limiting to prevent spam
+      const errorCounts = new Map<string, { count: number; lastLogged: number }>();
+      const ERROR_LOG_INTERVAL = 60000; // Only log same error once per minute
+      const MAX_ERROR_LOGS_PER_INTERVAL = 3; // Max 3 logs per error type per interval
+      const ERROR_CLEANUP_INTERVAL = 3600000; // Cleanup every hour
+      const ERROR_RETENTION_TIME = 7200000; // Keep entries for 2 hours
+      
+      // Periodic cleanup to prevent unbounded Map growth
+      setInterval(() => {
+        const now = Date.now();
+        for (const [key, value] of errorCounts.entries()) {
+          if (now - value.lastLogged > ERROR_RETENTION_TIME) {
+            errorCounts.delete(key);
+          }
+        }
+      }, ERROR_CLEANUP_INTERVAL);
+      
       plebbit.on("error", (error: any) => {
-        log.error(
-          "Plebbit error:",
-          error.message || error.code || "Unknown plebbit error",
-        );
+        const errorKey = error.message || error.code || "Unknown plebbit error";
+        const now = Date.now();
+        const errorInfo = errorCounts.get(errorKey) || { count: 0, lastLogged: 0 };
+        
+        errorInfo.count++;
+        let shouldLog = false;
+        
+        // Reset count if enough time has passed
+        if (now - errorInfo.lastLogged > ERROR_LOG_INTERVAL) {
+          errorInfo.count = 1;
+          errorInfo.lastLogged = now;
+          shouldLog = true;
+        } else if (errorInfo.count <= MAX_ERROR_LOGS_PER_INTERVAL) {
+          errorInfo.lastLogged = now;
+          shouldLog = true;
+        }
+        
+        // Update Map once after adjusting values
+        errorCounts.set(errorKey, errorInfo);
+        
+        // Log if should log
+        if (shouldLog) {
+          log.error("Plebbit error:", errorKey);
+        }
       });
       
       log.info("Plebbit initialized successfully");
