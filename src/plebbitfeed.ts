@@ -706,7 +706,7 @@ export async function fetchSubs() {
   let subs = [];
   try {
     const response = await fetch(
-      "https://raw.githubusercontent.com/plebbit/lists/refs/heads/master/default-multisub.json",
+      "https://raw.githubusercontent.com/plebbit/lists/master/default-multisub.json",
     );
     if (!response.ok) {
       throw new Error("Failed to fetch subs");
