@@ -497,6 +497,8 @@ async function scrollPosts(
 
             if (newPost.cid && hasSuccessfulSend) {
               processedCids.add(newPost.cid);
+              // Save immediately after each successful post to prevent duplicates on restart
+              savePosts();
             }
 
             // Removed 10-second delay for immediate post sending
@@ -539,6 +541,8 @@ async function scrollPosts(
 
             if (newPost.cid && hasSuccessfulSend) {
               processedCids.add(newPost.cid);
+              // Save immediately after each successful post to prevent duplicates on restart
+              savePosts();
             }
 
             // Removed 10-second delay for immediate post sending
@@ -548,6 +552,9 @@ async function scrollPosts(
         if (newPost.cid && (postData.link ? true : true)) { // Always log for now, can be made conditional later
           log.info(`📩 New post: "${postData.title || "No title"}" on p/${getShortAddress(postData.subplebbitAddress)}`);
         }
+      } else if (newPost.cid && processedCids.has(newPost.cid)) {
+        // Post already processed, skip to prevent duplicates
+        log.debug(`⏭️  Skipping already processed post: ${newPost.cid.substring(0, 12)}... on p/${getShortAddress(newPost.subplebbitAddress)}`);
       }
     }
   } catch (e) {
@@ -579,12 +586,18 @@ function loadOldPosts() {
   try {
     const data = fs.readFileSync(historyCidsFile, "utf8");
     const parsedData = JSON.parse(data);
-    processedCids = new Set(parsedData.Cids); // Ensure uniqueness
+    const loadedCids = parsedData.Cids || [];
+    processedCids = new Set(loadedCids); // Ensure uniqueness
+    log.info(`✅ Loaded ${loadedCids.length} previously processed post CIDs from history`);
   } catch (error) {
-    log.warn(
-      "Could not load old posts, starting with empty history:",
-      error instanceof Error ? error.message : String(error),
-    );
+    if (error instanceof Error && error.message.includes('ENOENT')) {
+      log.info("📝 No history file found, starting with empty history");
+    } else {
+      log.warn(
+        "⚠️  Could not load history file, starting with empty history:",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     processedCids = new Set(); // Initialize with empty set
   }
 }
@@ -597,8 +610,9 @@ function savePosts() {
       JSON.stringify(dataToSave, null, 2),
       "utf8",
     );
+    log.debug(`💾 Saved ${processedCids.size} processed CIDs to history file`);
   } catch (error) {
-    log.error("Error saving json file");
+    log.error("❌ Error saving history file:", error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -616,6 +630,9 @@ export async function startPlebbitFeedBot(
   if (!process.env.BOT_TOKEN) {
     throw new Error("BOT_TOKEN not set");
   }
+
+  // Load history at startup to ensure we don't send duplicates from the beginning
+  loadOldPosts();
 
   // Error rate limiting for subplebbit errors
   const subErrorCounts = new Map<string, { count: number; lastLogged: number }>();
