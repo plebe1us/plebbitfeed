@@ -266,11 +266,17 @@ async function scrollPosts(
       if (subInstance.posts?.pageCids?.new) {
         const newPage = await subInstance.posts.getPage(subInstance.posts.pageCids.new);
         posts = newPage.comments || [];
-        log.info(`Loaded ${posts.length} posts from 'new' page`);
+        // Reduced verbose logging - only log if significant number of posts
+        if (posts.length > 10) {
+          log.info(`Loaded ${posts.length} posts from 'new' page for ${getShortAddress(address)}`);
+        }
       } else if (subInstance.posts?.pages?.hot?.comments) {
         // Fallback to preloaded hot page if available
         posts = subInstance.posts.pages.hot.comments;
-        log.info(`Using ${posts.length} preloaded posts from 'hot' page`);
+        // Reduced verbose logging - only log if significant number of posts
+        if (posts.length > 10) {
+          log.info(`Using ${posts.length} preloaded posts from 'hot' page for ${getShortAddress(address)}`);
+        }
       } else {
         log.warn("No posts pages available, falling back to manual traversal");
         // Fallback to original method if pages aren't available
@@ -319,7 +325,7 @@ async function scrollPosts(
           }),
           new Promise<void>((resolve) => {
             setTimeout(() => {
-              log.warn(`CommentUpdate loading timed out for ${newPost.cid}, proceeding anyway`);
+              // Reduced verbose logging for comment update timeouts
               resolve();
             }, 10000); // 10 second timeout for faster responsiveness
           })
@@ -331,7 +337,7 @@ async function scrollPosts(
 
         // Now check removed status
         if (isRemoved) {
-          log.info(`Post ${newPost.cid} is removed, skipping.`);
+          // Reduced verbose logging for removed posts
           await comment.stop();
           continue;
         }
@@ -341,13 +347,13 @@ async function scrollPosts(
         const currentTime = Math.floor(Date.now() / 1000);
         const maxAge = 2 * 24 * 60 * 60; // 2 days in seconds
         if (currentTime - newPost.timestamp > maxAge) {
-          log.info("Post is older than 2 days, skipping retry.");
+          // Reduced verbose logging for old posts
           continue;
         }
 
         // Check if the post is deleted
         if (newPost.deleted) {
-          log.info("Post is deleted, skipping.");
+          // Reduced verbose logging for deleted posts
           continue;
         }
 
@@ -490,9 +496,10 @@ async function scrollPosts(
             // Removed 10-second delay for immediate post sending
           });
         }
-        log.info(
-          `New post found: ${postData.title || "No title"} on p/${getShortAddress(postData.subplebbitAddress)}`,
-        );
+        // Only log new posts that were successfully sent
+        if (newPost.cid && (postData.link ? true : true)) { // Always log for now, can be made conditional later
+          log.info(`📩 New post: "${postData.title || "No title"}" on p/${getShortAddress(postData.subplebbitAddress)}`);
+        }
       }
     }
   } catch (e) {
@@ -594,14 +601,20 @@ export async function startPlebbitFeedBot(
     
     // Process subplebbits in smaller batches to reduce load
     const batchSize = 5; // Process 5 subs at a time instead of all at once
+    let processedCount = 0;
+    let newPostsFound = 0;
+    
     for (let i = 0; i < subs.length; i += batchSize) {
       if (isShuttingDown) break;
       
       const batch = subs.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(async (subAddress: string) => {
+      const batchResults = await Promise.allSettled(
+        batch.map(async (subAddress: string, batchIndex: number) => {
+          const globalIndex = i + batchIndex + 1;
+          log.info(`Processing subs: (${globalIndex}/${subs.length}) ${getShortAddress(subAddress)}`);
+          processedCount++;
           try {
-            if (isShuttingDown) return;
+            if (isShuttingDown) return { postsFound: 0 };
             
             const subInstance: any = await Promise.race([
               plebbit.getSubplebbit(subAddress),
@@ -615,9 +628,10 @@ export async function startPlebbitFeedBot(
               }),
             ]);
             
-            if (isShuttingDown) return;
+            if (isShuttingDown) return { postsFound: 0 };
             
             if (subInstance.address) {
+              const postsBefore = processedCids.size;
               await Promise.race([
                 scrollPosts(
                   subInstance.address,
@@ -639,7 +653,10 @@ export async function startPlebbitFeedBot(
                   );
                 }),
               ]);
+              const postsAfter = processedCids.size;
+              return { postsFound: postsAfter - postsBefore };
             }
+            return { postsFound: 0 };
           } catch (e) {
             // Rate limit subplebbit errors
             const errorKey = `${subAddress}:${e instanceof Error ? e.message : String(e)}`;
@@ -648,27 +665,33 @@ export async function startPlebbitFeedBot(
             
             errorInfo.count++;
             
+            // More aggressive rate limiting - only log every 15 minutes for IPNS errors
+            const isIPNSError = e instanceof Error && e.message.includes("Failed to resolve IPNS");
+            const logInterval = isIPNSError ? 15 * 60 * 1000 : SUB_ERROR_LOG_INTERVAL; // 15 minutes for IPNS errors
+            
             // Update Map and log if within interval
-            if (now - errorInfo.lastLogged > SUB_ERROR_LOG_INTERVAL) {
+            if (now - errorInfo.lastLogged > logInterval) {
               errorInfo.lastLogged = now;
               
-              // Check if this is an IPNS resolution failure (subplebbit likely offline)
-              const errorMessage = e instanceof Error ? e.message : String(e);
-              if (errorMessage.includes("Failed to resolve IPNS")) {
-                log.warn(
-                  `Subplebbit ${getShortAddress(subAddress)} appears to be offline (IPNS resolution failed)`
-                );
-              } else {
-                log.error(
-                  `Error processing subplebbit ${subAddress}:`,
-                  errorMessage,
-                );
+              // Only log first occurrence of IPNS errors, then suppress for 15 minutes
+              if (isIPNSError && errorInfo.count === 1) {
+                log.warn(`Subplebbit ${getShortAddress(subAddress)} offline (IPNS resolution failed)`);
+              } else if (!isIPNSError) {
+                log.error(`Error processing ${getShortAddress(subAddress)}: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
             subErrorCounts.set(errorKey, errorInfo);
+            return { postsFound: 0 };
           }
         }),
       );
+      
+      // Collect batch results
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          newPostsFound += result.value.postsFound || 0;
+        }
+      });
       
       // Small delay between batches to prevent overwhelming the system
       if (i + batchSize < subs.length && !isShuttingDown) {
@@ -682,7 +705,7 @@ export async function startPlebbitFeedBot(
     
     const cycleEndTime = Date.now();
     const cycleDuration = cycleEndTime - cycleStartTime;
-    log.info(`Cycle ${cycleCount} completed in ${Math.round(cycleDuration / 1000)}s`);
+    log.info(`Cycle ${cycleCount} completed: ${processedCount}/${subs.length} subs processed, ${newPostsFound} new posts found (${Math.round(cycleDuration / 1000)}s)`);
     
     // Wait only 30 seconds between cycles for real-time monitoring
     log.info("Waiting 30 seconds before next cycle...");

@@ -221,12 +221,19 @@ const start = async () => {
         errorInfo.count++;
         let shouldLog = false;
         
+        // More aggressive rate limiting for common IPFS errors
+        const isIPFSError = errorKey.includes("Failed to resolve IPNS") || 
+                           errorKey.includes("IPFS") || 
+                           errorKey.includes("timeout") ||
+                           errorKey.includes("connect ECONNREFUSED");
+        const logInterval = isIPFSError ? 15 * 60 * 1000 : ERROR_LOG_INTERVAL; // 15 minutes for IPFS errors
+        
         // Reset count if enough time has passed
-        if (now - errorInfo.lastLogged > ERROR_LOG_INTERVAL) {
+        if (now - errorInfo.lastLogged > logInterval) {
           errorInfo.count = 1;
           errorInfo.lastLogged = now;
           shouldLog = true;
-        } else if (errorInfo.count <= MAX_ERROR_LOGS_PER_INTERVAL) {
+        } else if (!isIPFSError && errorInfo.count <= MAX_ERROR_LOGS_PER_INTERVAL) {
           errorInfo.lastLogged = now;
           shouldLog = true;
         }
@@ -234,11 +241,13 @@ const start = async () => {
         // Update Map once after adjusting values
         errorCounts.set(errorKey, errorInfo);
         
-        // Log if should log
+        // Log if should log (with more selective logging)
         if (shouldLog) {
-          // Use appropriate log level based on error type
           if (errorKey.includes("Failed to resolve IPNS")) {
-            log.warn("IPNS resolution failed (subplebbit may be offline)");
+            // Only log IPNS errors once every 15 minutes
+            log.warn("⚠️  Some subplebbits offline (IPNS resolution issues)");
+          } else if (isIPFSError) {
+            log.warn(`⚠️  IPFS connectivity issue: ${errorKey.substring(0, 50)}...`);
           } else {
             log.error("Plebbit error:", errorKey);
           }
