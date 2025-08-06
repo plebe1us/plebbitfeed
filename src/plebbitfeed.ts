@@ -79,6 +79,16 @@ function getMediaTypeFromUrl(
   }
 }
 
+// Helper function to detect Twitter video URLs
+function isTwitterVideoUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.hostname === "video.twimg.com" && parsedUrl.pathname.includes(".mp4");
+  } catch {
+    return false;
+  }
+}
+
 function isEmbeddablePlatform(parsedUrl: URL): boolean {
   const embeddableDomains = [
     // YouTube
@@ -147,12 +157,37 @@ async function sendMediaToChatWithParsedType(
         break;
 
       case "video":
-        await tgBotInstance.telegram.sendVideo(chatId, url, {
-          parse_mode: "HTML",
-          caption: caption,
-          has_spoiler: hasSpoiler,
-          reply_markup: replyMarkup,
-        });
+        try {
+          await tgBotInstance.telegram.sendVideo(chatId, url, {
+            parse_mode: "HTML",
+            caption: caption,
+            has_spoiler: hasSpoiler,
+            reply_markup: replyMarkup,
+          });
+        } catch (videoError) {
+          // Special handling for Twitter video URLs which often fail with direct sendVideo
+          if (isTwitterVideoUrl(url)) {
+            log.info(`Twitter video failed to send directly to ${chatId}, trying alternative approaches`);
+            
+            // Try sending as text with video attachment note
+            try {
+              await tgBotInstance.telegram.sendMessage(
+                chatId,
+                `${caption}\n\n🎥 <i>Video attachment (click to view):</i> ${url}`,
+                {
+                  parse_mode: "HTML",
+                  reply_markup: replyMarkup,
+                }
+              );
+              return; // Success, exit early
+            } catch (embedError) {
+              log.warn(`Failed to send Twitter video as text message to ${chatId}:`, embedError);
+            }
+          }
+          
+          // Re-throw the original error to trigger general fallback
+          throw videoError;
+        }
         break;
 
       case "audio":
@@ -236,11 +271,24 @@ async function sendMediaToChatWithParsedType(
         break;
     }
   } catch (error) {
-    log.error(`Error sending ${mediaType} to ${chatId}:`, error);
-    // Fallback to text message
+    // Provide more specific error messages for different media types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (mediaType === "video" && isTwitterVideoUrl(url)) {
+      log.error(`Failed to send Twitter video to ${chatId} (${errorMessage}). This is a known issue with Twitter video URLs and Telegram.`);
+    } else {
+      log.error(`Error sending ${mediaType} to ${chatId}:`, error);
+    }
+    
+    // Fallback to text message with appropriate emoji
+    const mediaEmoji = mediaType === "video" ? "🎥" : 
+                      mediaType === "image" ? "🖼️" : 
+                      mediaType === "audio" ? "🎵" : 
+                      mediaType === "animation" ? "🎞️" : "🔗";
+    
     await tgBotInstance.telegram.sendMessage(
       chatId,
-      `${caption}\n\n🔗 ${url}`,
+      `${caption}\n\n${mediaEmoji} ${url}`,
       {
         parse_mode: "HTML",
         reply_markup: replyMarkup,
