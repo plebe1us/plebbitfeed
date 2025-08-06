@@ -48,6 +48,17 @@ console.log = (...args: any[]) => {
     // Skip massive plebbit object dumps
     return;
   }
+  
+  // Filter out HTTP 429 retry messages from IPFS
+  if (
+    stringified.includes("Server responded with 429 Too Many Requests") &&
+    stringified.includes("Retrying after") &&
+    stringified.includes("delay")
+  ) {
+    // Skip noisy IPFS rate limit retry messages
+    return;
+  }
+  
   originalConsoleLog.apply(console, args);
 };
 
@@ -62,6 +73,17 @@ console.error = (...args: any[]) => {
   ) {
     return;
   }
+  
+  // Filter out HTTP 429 retry messages from IPFS
+  if (
+    stringified.includes("Server responded with 429 Too Many Requests") &&
+    stringified.includes("Retrying after") &&
+    stringified.includes("delay")
+  ) {
+    // Skip noisy IPFS rate limit retry messages
+    return;
+  }
+  
   originalConsoleError.apply(console, args);
 };
 
@@ -76,6 +98,17 @@ console.warn = (...args: any[]) => {
   ) {
     return;
   }
+  
+  // Filter out HTTP 429 retry messages from IPFS
+  if (
+    stringified.includes("Server responded with 429 Too Many Requests") &&
+    stringified.includes("Retrying after") &&
+    stringified.includes("delay")
+  ) {
+    // Skip noisy IPFS rate limit retry messages
+    return;
+  }
+  
   originalConsoleWarn.apply(console, args);
 };
 
