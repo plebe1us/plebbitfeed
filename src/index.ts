@@ -170,16 +170,10 @@ const start = async () => {
     // Initialize Plebbit with timeout
     log.info("Initializing Plebbit...");
     try {
-      // Use different IPFS port for local development vs production
-      const kuboUrl = process.env.NODE_ENV === 'production' 
-        ? 'http://localhost:50019/api/v0'
-        : 'http://localhost:5001/api/v0';
-      
-      console.log(`Connecting to IPFS at: ${kuboUrl}`);
-      
+    
       plebbit = await Promise.race([
         Plebbit({
-          kuboRpcClientsOptions: [kuboUrl],
+          kuboRpcClientsOptions: [`http://localhost:50019/api/v0`],
           chainProviders: {
             eth: {
               urls: ["ethers.js", "https://ethrpc.xyz", "viem"],
