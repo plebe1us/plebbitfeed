@@ -321,7 +321,7 @@ async function scrollPosts(
             setTimeout(() => {
               log.warn(`CommentUpdate loading timed out for ${newPost.cid}, proceeding anyway`);
               resolve();
-            }, 30000); // 30 second timeout
+            }, 10000); // 10 second timeout for faster responsiveness
           })
         ]);
 
@@ -445,7 +445,7 @@ async function scrollPosts(
               processedCids.add(newPost.cid);
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+            // Removed 10-second delay for immediate post sending
           });
         } else {
           await queue.add(async () => {
@@ -487,7 +487,7 @@ async function scrollPosts(
               processedCids.add(newPost.cid);
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+            // Removed 10-second delay for immediate post sending
           });
         }
         log.info(
@@ -672,7 +672,7 @@ export async function startPlebbitFeedBot(
       
       // Small delay between batches to prevent overwhelming the system
       if (i + batchSize < subs.length && !isShuttingDown) {
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay between batches
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between batches
       }
     }
     
@@ -684,12 +684,12 @@ export async function startPlebbitFeedBot(
     const cycleDuration = cycleEndTime - cycleStartTime;
     log.info(`Cycle ${cycleCount} completed in ${Math.round(cycleDuration / 1000)}s`);
     
-    // Wait 10 minutes between full cycles to prevent excessive polling
-    log.info("Waiting 10 minutes before next cycle...");
-    const CYCLE_DELAY = 10 * 60 * 1000; // 10 minutes
+    // Wait only 30 seconds between cycles for real-time monitoring
+    log.info("Waiting 30 seconds before next cycle...");
+    const CYCLE_DELAY = 30 * 1000; // 30 seconds
     
     // Break the delay into smaller chunks to allow for graceful shutdown
-    const delayChunks = 60; // 60 chunks of 10 seconds each
+    const delayChunks = 6; // 6 chunks of 5 seconds each
     const chunkDelay = CYCLE_DELAY / delayChunks;
     
     for (let i = 0; i < delayChunks && !isShuttingDown; i++) {
